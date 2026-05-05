@@ -16,6 +16,39 @@ export default function LoginPage() {
   const [resendCountdown, setResendCountdown] = useState(0);
   const codeInputRef = useRef<HTMLInputElement>(null);
 
+  // Handle magic link params (?email=...&code=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const emailParam = params.get('email');
+    const codeParam  = params.get('code');
+    if (emailParam && codeParam && codeParam.length === 6) {
+      setEmail(emailParam);
+      setCode(codeParam);
+      setStep('code');
+      setLoading(true);
+      // Auto-verify immediately
+      fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify', email: emailParam, code: codeParam }),
+      }).then(async (res) => {
+        if (res.ok) {
+          router.push('/admin');
+          router.refresh();
+        } else {
+          const d = await res.json();
+          setError(d.error || 'Link expired. Request a new code.');
+          setLoading(false);
+          setCode('');
+        }
+      }).catch(() => {
+        setError('Network error. Please try again.');
+        setLoading(false);
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Start 60s countdown after OTP sent
   useEffect(() => {
     if (resendCountdown <= 0) return;

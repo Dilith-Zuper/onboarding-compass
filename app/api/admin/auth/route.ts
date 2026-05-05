@@ -16,7 +16,7 @@ function isZuperEmail(email: string): boolean {
   return email.trim().toLowerCase().endsWith(`@${ALLOWED_DOMAIN}`);
 }
 
-function otpEmailHtml(email: string, otp: string): string {
+function otpEmailHtml(email: string, otp: string, magicLink: string): string {
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"/></head>
@@ -27,11 +27,23 @@ function otpEmailHtml(email: string, otp: string): string {
     <p style="margin:6px 0 0;font-size:20px;font-weight:800;color:#FFFFFF;">Your sign-in code</p>
   </div>
   <div style="background:#FFFFFF;border:1px solid #E5E2DC;border-top:none;border-radius:0 0 12px 12px;padding:32px;text-align:center;">
-    <p style="margin:0 0 24px;font-size:13px;color:#6B7280;">Sign in as <strong>${email}</strong></p>
-    <div style="background:#FAF9F7;border:1px solid #E5E2DC;border-radius:12px;padding:24px;margin-bottom:24px;">
-      <p style="margin:0;font-size:40px;font-weight:800;color:#1A1A1A;letter-spacing:12px;">${otp}</p>
+    <p style="margin:0 0 20px;font-size:13px;color:#6B7280;">Signing in as <strong style="color:#1A1A1A;">${email}</strong></p>
+
+    <!-- Code block -->
+    <div style="background:#FAF9F7;border:2px solid #E5E2DC;border-radius:12px;padding:20px 24px;margin-bottom:20px;">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#9CA3AF;">Your code</p>
+      <p style="margin:0;font-size:44px;font-weight:800;color:#1A1A1A;letter-spacing:14px;font-variant-numeric:tabular-nums;">${otp}</p>
     </div>
-    <p style="margin:0;font-size:12px;color:#9CA3AF;">Expires in ${OTP_TTL_MINUTES} minutes. Do not share this code.</p>
+
+    <!-- Magic link button -->
+    <a href="${magicLink}"
+       style="display:inline-block;background:#F97316;color:#FFFFFF;font-size:15px;font-weight:700;padding:14px 32px;border-radius:9999px;text-decoration:none;margin-bottom:20px;">
+      Sign in directly →
+    </a>
+    <p style="margin:0 0 4px;font-size:12px;color:#9CA3AF;">
+      Click the button above to sign in instantly, or enter the code manually.
+    </p>
+    <p style="margin:0;font-size:11px;color:#D1D5DB;">Expires in ${OTP_TTL_MINUTES} minutes · Do not share</p>
   </div>
 </div>
 </body>
@@ -77,16 +89,30 @@ export async function POST(req: NextRequest) {
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000).toISOString();
 
-    await supabase.from('admin_otps').insert({ email, otp, expires_at: expiresAt });
+    const { error: insertError } = await supabase
+      .from('admin_otps')
+      .insert({ email, otp, expires_at: expiresAt });
+
+    if (insertError) {
+      console.error('admin_otps insert error:', insertError);
+      return NextResponse.json(
+        { error: 'Database error — make sure you have run the admin_otps SQL in Supabase. See lib/supabase/schema.sql.' },
+        { status: 500 }
+      );
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const magicLink = `${appUrl}/admin/login?email=${encodeURIComponent(email)}&code=${otp}`;
 
     try {
       await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'dilith@zuper.co',
+        from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
         to: [email],
-        subject: 'Your Onboarding Compass sign-in code',
-        html: otpEmailHtml(email, otp),
+        subject: `${otp} is your Onboarding Compass code`,
+        html: otpEmailHtml(email, otp, magicLink),
       });
-    } catch {
+    } catch (err) {
+      console.error('Resend error:', err);
       return NextResponse.json({ error: 'Failed to send email. Check Resend configuration.' }, { status: 500 });
     }
 
@@ -103,7 +129,7 @@ export async function POST(req: NextRequest) {
 
     const supabase = createClient();
 
-    const { data: record } = await supabase
+    const { data: record, error: queryError } = await supabase
       .from('admin_otps')
       .select('id, otp, expires_at, used')
       .eq('email', email)
@@ -112,6 +138,14 @@ export async function POST(req: NextRequest) {
       .limit(1)
       .single();
 
+    if (queryError) {
+      console.error('admin_otps query error:', queryError);
+      return NextResponse.json(
+        { error: 'Database error — make sure you have run the admin_otps SQL in Supabase.' },
+        { status: 500 }
+      );
+    }
+
     if (!record) {
       return NextResponse.json({ error: 'No active code found. Request a new one.' }, { status: 400 });
     }
@@ -119,7 +153,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Code expired. Request a new one.' }, { status: 400 });
     }
     if (record.otp !== code) {
-      return NextResponse.json({ error: 'Incorrect code.' }, { status: 400 });
+      return NextResponse.json({ error: 'Incorrect code. Check your email and try again.' }, { status: 400 });
     }
 
     // Mark used
