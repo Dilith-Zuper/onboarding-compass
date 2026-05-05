@@ -66,6 +66,16 @@ CREATE TABLE golive_reports (
   report_token TEXT UNIQUE DEFAULT encode(gen_random_bytes(16), 'hex')
 );
 
+-- Admin OTP codes (email-based login, zuper.co only)
+CREATE TABLE admin_otps (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL,
+  otp TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 ALTER TABLE sessions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE snapshots DISABLE ROW LEVEL SECURITY;
 ALTER TABLE responses DISABLE ROW LEVEL SECURITY;

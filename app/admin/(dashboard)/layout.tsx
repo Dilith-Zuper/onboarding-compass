@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { jwtVerify } from 'jose';
 import Link from 'next/link';
+import SignOutButton from '@/components/admin/SignOutButton';
 
 const secret = new TextEncoder().encode(process.env.ADMIN_JWT_SECRET!);
 
@@ -9,9 +10,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const cookieStore = cookies();
   const token = cookieStore.get('admin_token')?.value;
 
+  let email = '';
   if (token) {
     try {
-      await jwtVerify(token, secret);
+      const { payload } = await jwtVerify(token, secret);
+      email = (payload.email as string) || '';
     } catch {
       redirect('/admin/login');
     }
@@ -31,16 +34,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               </svg>
             </div>
             <span className="text-[#E5E2DC]">|</span>
-            <span className="text-sm font-medium text-gray-500">Onboarding Compass</span>
-            <span className="text-[#E5E2DC]">·</span>
-            <span className="text-sm text-gray-400">Admin</span>
+            <Link href="/admin" className="text-sm font-medium text-gray-500 hover:text-orange-500 transition-colors">
+              Onboarding Compass
+            </Link>
           </div>
-          <Link
-            href="/admin/login"
-            className="text-xs font-medium text-gray-400 hover:text-orange-500 transition-colors underline underline-offset-2"
-          >
-            Sign out
-          </Link>
+          <div className="flex items-center gap-4">
+            {email && (
+              <span className="hidden sm:block text-xs text-gray-400 font-medium">{email}</span>
+            )}
+            <SignOutButton />
+          </div>
         </div>
       </header>
       <main className="max-w-[760px] mx-auto px-6 py-12 space-y-8">
