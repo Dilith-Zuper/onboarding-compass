@@ -1,0 +1,161 @@
+import { QUESTIONS } from '@/lib/questions';
+import { CONFIG_MATRIX } from '@/lib/configMatrix';
+
+// ── SA notification email ────────────────────────────────────────────────────
+
+export function buildSAEmail({
+  orgName,
+  customerName,
+  customerEmail,
+  saEmail,
+  answers,
+  changeRequests,
+  sessionId,
+  appUrl,
+}: {
+  orgName: string;
+  customerName: string;
+  customerEmail: string;
+  saEmail: string;
+  answers: Record<string, any>;
+  changeRequests: Record<string, string>;
+  sessionId: string;
+  appUrl: string;
+}) {
+  const answeredQA = QUESTIONS
+    .filter((q) => answers[q.id] !== undefined && answers[q.id] !== '')
+    .map((q) => {
+      const raw = answers[q.id];
+      let display: string;
+      if (Array.isArray(raw)) {
+        const labels = (q.options ?? []).reduce<Record<string, string>>((acc, o) => { acc[o.value] = o.label; return acc; }, {});
+        display = raw.map((v) => labels[v] || v).join(', ');
+      } else if (q.options) {
+        display = q.options.find((o) => o.value === raw)?.label || raw;
+      } else {
+        display = String(raw);
+      }
+      return `<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E2DC;font-size:13px;color:#6B7280;">${q.text}</td><td style="padding:8px 12px;border-bottom:1px solid #E5E2DC;font-size:13px;color:#1A1A1A;font-weight:600;">${display}</td></tr>`;
+    }).join('');
+
+  const changeRows = CONFIG_MATRIX
+    .filter((m) => changeRequests[m.module]?.trim())
+    .map((m) => `
+      <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px 16px;margin-bottom:8px;">
+        <p style="margin:0 0 4px 0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#B45309;">${m.label}</p>
+        <p style="margin:0;font-size:13px;color:#1A1A1A;">${changeRequests[m.module]}</p>
+      </div>`).join('');
+
+  const adminLink = `${appUrl}/admin/session/${sessionId}`;
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#FAF9F7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<div style="max-width:600px;margin:40px auto;padding:0 16px;">
+
+  <!-- Header -->
+  <div style="background:#1A1A1A;border-radius:12px 12px 0 0;padding:24px 32px;">
+    <p style="margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#F97316;">Onboarding Compass</p>
+    <p style="margin:6px 0 0;font-size:22px;font-weight:800;color:#FFFFFF;">${orgName} has submitted</p>
+  </div>
+
+  <!-- Body -->
+  <div style="background:#FFFFFF;border:1px solid #E5E2DC;border-top:none;border-radius:0 0 12px 12px;padding:32px;">
+    <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#9CA3AF;">Customer</p>
+    <p style="margin:0 0 24px;font-size:15px;color:#1A1A1A;">${customerName} &lt;${customerEmail}&gt;</p>
+
+    <!-- Answers -->
+    <p style="margin:0 0 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#9CA3AF;">Discovery answers</p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:28px;border:1px solid #E5E2DC;border-radius:8px;overflow:hidden;">
+      ${answeredQA}
+    </table>
+
+    <!-- Change requests -->
+    ${changeRows ? `
+    <p style="margin:0 0 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#9CA3AF;">Change requests</p>
+    ${changeRows}
+    <div style="margin-bottom:28px;"></div>` : ''}
+
+    <!-- CTA -->
+    <a href="${adminLink}" style="display:inline-block;background:#F97316;color:#FFFFFF;font-size:14px;font-weight:700;padding:14px 28px;border-radius:9999px;text-decoration:none;">
+      View session in admin →
+    </a>
+  </div>
+
+  <p style="text-align:center;font-size:11px;color:#9CA3AF;margin-top:24px;">
+    Zuper Onboarding Compass · <a href="mailto:onboarding@zuper.co" style="color:#F97316;">onboarding@zuper.co</a>
+  </p>
+</div>
+</body>
+</html>`;
+
+  return {
+    subject: `[Compass] ${orgName} has completed their onboarding questionnaire`,
+    html,
+  };
+}
+
+// ── Customer confirmation email ──────────────────────────────────────────────
+
+export function buildCustomerEmail({
+  orgName,
+  customerName,
+  saEmail,
+  changeRequests,
+}: {
+  orgName: string;
+  customerName: string;
+  saEmail: string;
+  changeRequests: Record<string, string>;
+}) {
+  const requestSummary = CONFIG_MATRIX
+    .filter((m) => changeRequests[m.module]?.trim())
+    .map((m) => `<li style="margin-bottom:6px;font-size:13px;color:#1A1A1A;"><strong>${m.label}:</strong> ${changeRequests[m.module]}</li>`)
+    .join('');
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#FAF9F7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<div style="max-width:600px;margin:40px auto;padding:0 16px;">
+
+  <div style="background:#1A1A1A;border-radius:12px 12px 0 0;padding:24px 32px;">
+    <p style="margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#F97316;">Onboarding Compass</p>
+    <p style="margin:6px 0 0;font-size:22px;font-weight:800;color:#FFFFFF;">Your Zuper setup is being prepared</p>
+  </div>
+
+  <div style="background:#FFFFFF;border:1px solid #E5E2DC;border-top:none;border-radius:0 0 12px 12px;padding:32px;">
+    <p style="margin:0 0 20px;font-size:15px;color:#1A1A1A;">Hi ${customerName},</p>
+    <p style="margin:0 0 20px;font-size:14px;color:#6B7280;line-height:1.6;">
+      We've received your onboarding questionnaire for <strong>${orgName}</strong>. Your SA will review your responses and configure your account before go-live.
+    </p>
+
+    ${requestSummary ? `
+    <p style="margin:0 0 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#9CA3AF;">Your change requests</p>
+    <ul style="margin:0 0 28px;padding-left:18px;">${requestSummary}</ul>` : ''}
+
+    <p style="margin:0 0 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#9CA3AF;">What happens next</p>
+    <div style="background:#FAF9F7;border-radius:8px;padding:16px;margin-bottom:28px;">
+      <p style="margin:0 0 10px;font-size:13px;color:#1A1A1A;">1. Your SA (${saEmail}) reviews your setup</p>
+      <p style="margin:0 0 10px;font-size:13px;color:#1A1A1A;">2. Your account is configured to spec</p>
+      <p style="margin:0;font-size:13px;color:#1A1A1A;">3. Go-live walkthrough call scheduled</p>
+    </div>
+
+    <p style="margin:0;font-size:13px;color:#6B7280;">
+      Questions? Reply to this email or contact <a href="mailto:onboarding@zuper.co" style="color:#F97316;">onboarding@zuper.co</a>
+    </p>
+  </div>
+
+  <p style="text-align:center;font-size:11px;color:#9CA3AF;margin-top:24px;">
+    Zuper Onboarding Compass
+  </p>
+</div>
+</body>
+</html>`;
+
+  return {
+    subject: `Your Zuper setup is being prepared, ${customerName}`,
+    html,
+  };
+}

@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Surfaces */
+  --bg: #FAF9F7;
+  --surface: #FFFFFF;
+  --surface-alt: #F5F3F0;
+  --border: #E5E2DC;
+
+  /* Text */
+  --text: #1A1A1A;
+
+  /* Action */
+  --orange: #F97316;
+  --orange-hover: #EA6C0A;
+
+  /* Semantic */
+  --success: #22C55E;
+  --error: #EF4444;
+  --warning: #F59E0B;
+
+  /* Dark surfaces */
+  --dark: #1A1A1A;
+  --terminal: #1C1917;
+
+  /* Font */
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: var(--font-geist-mono, ui-monospace, monospace);
+}
+
+body {
+  color: var(--text);
+  background: var(--bg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  /* Prevent horizontal scroll on mobile */
+  overflow-x: hidden;
+}
+
+/* Minimum touch target size */
+button, a {
+  min-height: 44px;
+  min-height: max(44px, var(--min-touch, 0px));
+}
+
+/* Inline elements shouldn't force min-height */
+a[href^="mailto"], span > a {
+  min-height: unset;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* React Flow — remove default outline on nodes */
+.react-flow__node:focus {
+  outline: none;
+}
+.react-flow__node:focus-visible {
+  outline: 2px solid #F97316;
+  outline-offset: 2px;
+  border-radius: 12px;
+}
