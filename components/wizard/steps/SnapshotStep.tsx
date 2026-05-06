@@ -124,7 +124,7 @@ export function SnapshotStep({ token, snapshot, answers, changeRequests, onChang
               {activeTab === 'statuses'      && <StatusesModule      categories={categories} />}
               {activeTab === 'checklists'    && <ChecklistsModule    checklists={checklists} />}
               {activeTab === 'notifications' && <NotificationsModule notifications={notifications} />}
-              {activeTab === 'workflows'     && <WorkflowsModule     workflows={workflows} explanations={explanations} />}
+              {activeTab === 'workflows'     && <WorkflowsModule     workflows={workflows} explanations={explanations} token={token} />}
               {activeTab === 'cpq'           && <CPQModule           selectedBrands={selectedBrands} />}
             </ModuleCard>
           </div>

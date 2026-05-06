@@ -19,17 +19,21 @@ export async function GET(
     return NextResponse.json({ error: 'Session not found' }, { status: 404 });
   }
 
-  // Return cached snapshot if it exists
-  const { data: existing } = await supabase
-    .from('snapshots')
-    .select('*')
-    .eq('session_id', session.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
+  const force = req.nextUrl.searchParams.get('force') === 'true';
 
-  if (existing) {
-    return NextResponse.json({ snapshot: existing });
+  // Return cached snapshot unless force-refresh requested
+  if (!force) {
+    const { data: existing } = await supabase
+      .from('snapshots')
+      .select('*')
+      .eq('session_id', session.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (existing) {
+      return NextResponse.json({ snapshot: existing });
+    }
   }
 
   // Fetch fresh snapshot from Zuper

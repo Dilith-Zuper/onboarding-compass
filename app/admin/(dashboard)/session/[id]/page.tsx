@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { formatDistanceToNow, format } from 'date-fns';
 import { CopyButton } from '@/components/admin/CopyButton';
 import { GoLiveButton } from '@/components/admin/GoLiveButton';
+import { RefreshSnapshotButton } from '@/components/admin/RefreshSnapshotButton';
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   pending:     { label: 'Pending',     cls: 'bg-gray-100 text-gray-500' },
@@ -76,6 +77,9 @@ export default async function SessionDetailPage({ params }: { params: { id: stri
 
       {/* Snapshot */}
       <Section title="Account snapshot">
+        <div className="flex justify-end mb-4">
+          <RefreshSnapshotButton token={session.unique_token} />
+        </div>
         {snapshot ? (
           <>
             <p className="text-xs text-gray-400 mb-4">

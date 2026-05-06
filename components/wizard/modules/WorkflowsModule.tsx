@@ -1,21 +1,62 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import type { ZuperWorkflowSummary } from '@/lib/zuper/transformer';
+
+type Explanation = { headline: string; description: string; saves: string[] };
 
 interface Props {
   workflows: ZuperWorkflowSummary[];
-  explanations: Record<string, { headline: string; description: string; saves: string[] }>;
+  explanations: Record<string, Explanation>;
+  token: string;
 }
 
-export function WorkflowsModule({ workflows, explanations }: Props) {
+export function WorkflowsModule({ workflows, explanations: initialExplanations, token }: Props) {
+  const [explanations, setExplanations] = useState<Record<string, Explanation>>(initialExplanations);
+
+  // Poll for missing explanations every 3s until all arrive or 45s passes
+  useEffect(() => {
+    const missing = workflows.filter((w) => !explanations[w.uid]).length;
+    if (!missing || !token) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/zuper/${token}/workflows`);
+        if (res.ok) {
+          const data = await res.json();
+          setExplanations(data.explanations ?? {});
+        }
+      } catch { /* non-fatal */ }
+    }, 3000);
+
+    const timeout = setTimeout(() => clearInterval(interval), 45_000);
+    return () => { clearInterval(interval); clearTimeout(timeout); };
+  // Run only on mount — polling manages itself via the interval
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!workflows.length) {
     return <p className="text-sm text-gray-500">No automations found.</p>;
   }
 
   const active   = workflows.filter((w) => w.isActive);
   const inactive = workflows.filter((w) => !w.isActive);
+  const readyCount = workflows.filter((w) => explanations[w.uid]).length;
+  const totalCount = workflows.length;
 
   return (
     <div className="space-y-3">
-      {active.map((wf) => <WorkflowCard key={wf.uid} wf={wf} explanation={explanations[wf.uid]} />)}
+      {/* Progress indicator while explanations are loading */}
+      {readyCount < totalCount && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 border border-orange-200 rounded-xl">
+          <span className="w-4 h-4 rounded-full border-2 border-orange-500 border-t-transparent animate-spin shrink-0" />
+          <p className="text-xs text-orange-700 font-medium">
+            Generating plain-English explanations… {readyCount}/{totalCount} ready
+          </p>
+        </div>
+      )}
+
+      {active.map((wf)   => <WorkflowCard key={wf.uid} wf={wf} explanation={explanations[wf.uid]} />)}
       {inactive.map((wf) => <WorkflowCard key={wf.uid} wf={wf} explanation={explanations[wf.uid]} dim />)}
     </div>
   );
@@ -27,7 +68,7 @@ function WorkflowCard({
   dim,
 }: {
   wf: ZuperWorkflowSummary;
-  explanation?: { headline: string; description: string; saves: string[] };
+  explanation?: Explanation;
   dim?: boolean;
 }) {
   return (
@@ -68,8 +109,8 @@ function WorkflowCard({
         </>
       ) : (
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full border-2 border-orange-500 border-t-transparent animate-spin shrink-0" />
-          <p className="text-xs text-gray-400">Generating plain-English explanation…</p>
+          <span className="w-3 h-3 rounded-full border-2 border-orange-400 border-t-transparent animate-spin shrink-0" />
+          <p className="text-xs text-gray-400">Generating explanation…</p>
         </div>
       )}
     </div>

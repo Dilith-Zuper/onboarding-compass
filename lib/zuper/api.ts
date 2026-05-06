@@ -28,17 +28,33 @@ export async function fetchZuperSnapshot(
   const notifications = transformNotifications(rawNotifications);
   const workflows = transformWorkflows(rawWorkflows);
 
-  const checklistPromises = categories
-    .filter((cat) => cat.statuses.length > 0)
-    .map((cat) =>
-      fetch(
-        `${base}/settings/checklist?category_uid=${cat.uid}&job_status_uid=${cat.statuses[0].uid}`,
-        { headers }
+  // Fetch checklists for ALL statuses per category, merge and deduplicate items.
+  // Using only statuses[0] missed checklists attached to other statuses.
+  const checklistPromises = categories.map(async (cat) => {
+    if (cat.statuses.length === 0) {
+      return { categoryUid: cat.uid, categoryName: cat.name, items: [] };
+    }
+    const results = await Promise.allSettled(
+      cat.statuses.map((s) =>
+        fetch(
+          `${base}/settings/checklist?category_uid=${cat.uid}&job_status_uid=${s.uid}`,
+          { headers }
+        )
+          .then((r) => r.json())
+          .then((raw) => transformChecklist(raw, cat.uid, cat.name))
+          .catch(() => ({ categoryUid: cat.uid, categoryName: cat.name, items: [] as any[] }))
       )
-        .then((r) => r.json())
-        .then((raw) => transformChecklist(raw, cat.uid, cat.name))
-        .catch(() => ({ categoryUid: cat.uid, categoryName: cat.name, items: [] }))
     );
+    const allItems = results
+      .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
+      .flatMap((r) => r.value.items);
+    // Deduplicate by uid, keep display_order sort
+    const seen = new Set<string>();
+    const uniqueItems = allItems
+      .filter((i) => { if (seen.has(i.uid)) return false; seen.add(i.uid); return true; })
+      .sort((a, b) => a.displayOrder - b.displayOrder);
+    return { categoryUid: cat.uid, categoryName: cat.name, items: uniqueItems };
+  });
 
   const checklists = await Promise.all(checklistPromises);
 
