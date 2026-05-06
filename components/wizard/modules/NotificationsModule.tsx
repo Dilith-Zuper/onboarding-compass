@@ -37,9 +37,13 @@ function NotifGroup({ label, items, dim }: { label: string; items: ZuperNotifica
 function NotifCard({ n, dim }: { n: ZuperNotification; dim?: boolean }) {
   const [expanded, setExpanded] = useState(false);
 
-  // Strip HTML tags from message body for display
+  // Strip HTML, clean up Handlebars placeholders for readability
   const rawMessage = n.message || '';
-  const plainMessage = rawMessage.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const plainMessage = rawMessage
+    .replace(/<[^>]*>/g, ' ')           // strip HTML tags
+    .replace(/\{\{[^}]+\}\}/g, '[…]')  // replace {{vars}} with […]
+    .replace(/\s+/g, ' ')
+    .trim();
   const PREVIEW_LEN = 120;
   const isLong = plainMessage.length > PREVIEW_LEN;
 

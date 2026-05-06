@@ -124,8 +124,8 @@ export function transformNotifications(raw: any): ZuperNotification[] {
       statusName: n.job_status?.status_name || '',
       statusType: n.job_status?.status_type || '',
       emailSubject: n.email_subject || '',
-      // Try all known Zuper field names for message body
-      message: n.message || n.email_message || n.email_body || n.sms_message || n.sms_body || n.body || '',
+      // Use type-specific body field (confirmed from API: email_body / sms_body)
+      message: n.notification_type === 'SMS' ? (n.sms_body || '') : (n.email_body || ''),
       isActive: n.is_active ?? true,
     }));
 }
