@@ -4,7 +4,6 @@ import { useState, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { ProgressBar } from './gamification/ProgressBar';
 import { MilestoneToast, showToast } from './gamification/MilestoneToast';
-import { computeScore } from './gamification/CompletionScore';
 import { WizardStep } from './WizardStep';
 import { WelcomeStep } from './steps/WelcomeStep';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
@@ -53,8 +52,6 @@ export default function WizardShell({
   const [customerName, setCustomerName] = useState('');
   const [answers, setAnswers] = useState<Record<string, any>>(initialAnswers);
   const [changeRequests, setChangeRequests] = useState<Record<string, string>>(initialChangeRequests);
-
-  const score = computeScore(answers, changeRequests);
 
   const goTo = useCallback((nextStep: number) => {
     setStep(nextStep);
@@ -128,7 +125,6 @@ export default function WizardShell({
                 customerName={customerName}
                 answers={answers}
                 changeRequests={changeRequests}
-                score={score}
               />
             )}
           </WizardStep>

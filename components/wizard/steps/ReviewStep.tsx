@@ -5,18 +5,15 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { QUESTIONS } from '@/lib/questions';
 import { CONFIG_MATRIX } from '@/lib/configMatrix';
-import { CompletionScore } from '../gamification/CompletionScore';
-
 interface Props {
   token: string;
   orgName: string;
   customerName: string;
   answers: Record<string, any>;
   changeRequests: Record<string, string>;
-  score: number;
 }
 
-export function ReviewStep({ token, orgName, customerName, answers, changeRequests, score }: Props) {
+export function ReviewStep({ token, orgName, customerName, answers, changeRequests }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -78,9 +75,6 @@ export function ReviewStep({ token, orgName, customerName, answers, changeReques
           Check everything looks right, then submit to your SA.
         </p>
       </motion.div>
-
-      {/* Completion score */}
-      <CompletionScore score={score} />
 
       {/* Answers summary */}
       {answeredQA.length > 0 && (
