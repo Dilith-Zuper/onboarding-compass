@@ -4,7 +4,9 @@ import { jwtVerify } from 'jose';
 import Link from 'next/link';
 import SignOutButton from '@/components/admin/SignOutButton';
 
-const secret = new TextEncoder().encode(process.env.ADMIN_JWT_SECRET!);
+import { cleanEnv } from '@/lib/utils';
+
+const secret = new TextEncoder().encode(cleanEnv(process.env.ADMIN_JWT_SECRET));
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = cookies();

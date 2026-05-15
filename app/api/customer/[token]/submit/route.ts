@@ -5,8 +5,9 @@ import { OnboardingReport } from '@/lib/pdf/OnboardingReport';
 import { buildSAEmail, buildCustomerEmail } from '@/lib/email/templates';
 import { Resend } from 'resend';
 import { createElement } from 'react';
+import { cleanEnv } from '@/lib/utils';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(cleanEnv(process.env.RESEND_API_KEY));
 
 export async function POST(
   req: NextRequest,

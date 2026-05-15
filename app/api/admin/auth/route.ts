@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SignJWT } from 'jose';
 import { createClient } from '@/lib/supabase/server';
 import { Resend } from 'resend';
+import { cleanEnv } from '@/lib/utils';
 
-const secret = new TextEncoder().encode(process.env.ADMIN_JWT_SECRET!);
-const resend = new Resend(process.env.RESEND_API_KEY);
+const secret = new TextEncoder().encode(cleanEnv(process.env.ADMIN_JWT_SECRET));
+const resend = new Resend(cleanEnv(process.env.RESEND_API_KEY));
 const ALLOWED_DOMAIN = 'zuper.co';
 const OTP_TTL_MINUTES = 10;
 

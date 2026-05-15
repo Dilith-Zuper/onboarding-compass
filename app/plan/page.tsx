@@ -2,7 +2,9 @@ import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import PlanForm from './PlanForm';
 
-const secret = new TextEncoder().encode(process.env.ADMIN_JWT_SECRET!);
+import { cleanEnv } from '@/lib/utils';
+
+const secret = new TextEncoder().encode(cleanEnv(process.env.ADMIN_JWT_SECRET));
 
 export default async function PlanPage() {
   const cookieStore = cookies();
