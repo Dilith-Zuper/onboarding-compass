@@ -2,8 +2,17 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import WizardShell from '@/components/wizard/WizardShell';
 
-export default async function WizardPage({ params }: { params: { token: string } }) {
+const CUSTOMER_NAME_KEY = '__customer_name';
+
+export default async function WizardPage({
+  params,
+  searchParams,
+}: {
+  params: { token: string };
+  searchParams: { preview?: string };
+}) {
   const supabase = createClient();
+  const isPreview = searchParams?.preview === 'true';
 
   const { data: session, error } = await supabase
     .from('sessions')
@@ -13,7 +22,8 @@ export default async function WizardPage({ params }: { params: { token: string }
 
   if (error || !session) notFound();
 
-  if (session.status === 'submitted' || session.status === 'live') {
+  // In preview mode, ignore submitted state so SAs can still inspect the wizard
+  if (!isPreview && (session.status === 'submitted' || session.status === 'live')) {
     const { redirect } = await import('next/navigation');
     redirect(`/w/${params.token}/submitted`);
   }
@@ -36,8 +46,8 @@ export default async function WizardPage({ params }: { params: { token: string }
     .select('module, request_text')
     .eq('session_id', session.id);
 
-  // Mark in_progress
-  if (session.status === 'pending') {
+  // Mark in_progress (skipped in preview mode)
+  if (!isPreview && session.status === 'pending') {
     await supabase
       .from('sessions')
       .update({ status: 'in_progress', updated_at: new Date().toISOString() })
@@ -45,8 +55,13 @@ export default async function WizardPage({ params }: { params: { token: string }
   }
 
   const initialAnswers: Record<string, any> = {};
+  let initialCustomerName = '';
   for (const r of responses ?? []) {
-    initialAnswers[r.question_id] = r.answer;
+    if (r.question_id === CUSTOMER_NAME_KEY) {
+      initialCustomerName = typeof r.answer === 'string' ? r.answer : '';
+    } else {
+      initialAnswers[r.question_id] = r.answer;
+    }
   }
 
   const initialChangeRequests: Record<string, string> = {};
@@ -62,7 +77,9 @@ export default async function WizardPage({ params }: { params: { token: string }
       snapshot={snapshot}
       initialAnswers={initialAnswers}
       initialChangeRequests={initialChangeRequests}
+      initialCustomerName={initialCustomerName}
       hasZuperConnect={session.has_zuper_connect ?? false}
+      isPreview={isPreview}
     />
   );
 }

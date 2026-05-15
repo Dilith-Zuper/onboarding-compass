@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   getQuestionsBySection,
@@ -35,7 +35,10 @@ interface Props {
   onAnswerChange: (a: Record<string, any>) => void;
   onNext: (a: Record<string, any>) => void;
   hasZuperConnect: boolean;
+  isPreview: boolean;
 }
+
+type SaveStatus = 'idle' | 'saving' | 'saved';
 
 export function QuestionsStep({
   token,
@@ -44,10 +47,46 @@ export function QuestionsStep({
   onAnswerChange,
   onNext,
   hasZuperConnect,
+  isPreview,
 }: Props) {
   const [localAnswers, setLocalAnswers] = useState<Record<string, any>>(answers);
   const [pageIndex, setPageIndex] = useState(0);
   const [otherText, setOtherText] = useState<Record<string, string>>({});
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear pending timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(saveTimers.current).forEach(clearTimeout);
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+    };
+  }, []);
+
+  function persistAnswer(questionId: string, value: any) {
+    if (isPreview) return;
+    // Debounce per-question: cancel previous pending save for this question
+    if (saveTimers.current[questionId]) clearTimeout(saveTimers.current[questionId]);
+    setSaveStatus('saving');
+    saveTimers.current[questionId] = setTimeout(async () => {
+      try {
+        await fetch(`/api/customer/${token}/response`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question_id: questionId, answer: value }),
+        });
+        setSaveStatus('saved');
+        if (savedTimer.current) clearTimeout(savedTimer.current);
+        savedTimer.current = setTimeout(() => setSaveStatus('idle'), 1500);
+      } catch {
+        // Silent failure — the customer can re-trigger save on the next change
+        setSaveStatus('idle');
+      } finally {
+        delete saveTimers.current[questionId];
+      }
+    }, 500);
+  }
 
   const sessionFlags = { hasZuperConnect };
 
@@ -80,6 +119,7 @@ export function QuestionsStep({
     const next = { ...localAnswers, [id]: value };
     setLocalAnswers(next);
     onAnswerChange(next);
+    persistAnswer(id, value);
     if (id === 'brands' && Array.isArray(value) && value.length > 0) {
       showToast('Good. We will build your proposals for each brand.');
     }
@@ -120,17 +160,38 @@ export function QuestionsStep({
   return (
     <div className="max-w-[760px] mx-auto px-6 py-12 space-y-8">
       {/* Section header */}
-      <div>
-        <p className="text-[11px] font-bold uppercase tracking-widest text-orange-500 mb-2">
-          {currentPage.section.label}
-          {currentPage.sectionPageCount > 1 && (
-            <span className="text-gray-400 font-semibold"> · {currentPage.sectionPageIndex} of {currentPage.sectionPageCount}</span>
-          )}
-          <span className="text-gray-400 font-semibold"> · Step {safePageIndex + 1} of {pages.length}</span>
-        </p>
-        <h1 className="text-[28px] sm:text-[32px] font-extrabold text-[#1A1A1A] leading-tight">
-          {customerName ? `Hi ${customerName} — ` : ''}{currentPage.section.description}
-        </h1>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-orange-500 mb-2">
+            {currentPage.section.label}
+            {currentPage.sectionPageCount > 1 && (
+              <span className="text-gray-400 font-semibold"> · {currentPage.sectionPageIndex} of {currentPage.sectionPageCount}</span>
+            )}
+            <span className="text-gray-400 font-semibold"> · Step {safePageIndex + 1} of {pages.length}</span>
+          </p>
+          <h1 className="text-[28px] sm:text-[32px] font-extrabold text-[#1A1A1A] leading-tight">
+            {customerName ? `Hi ${customerName} — ` : ''}{currentPage.section.description}
+          </h1>
+        </div>
+
+        {/* Save indicator */}
+        {!isPreview && saveStatus !== 'idle' && (
+          <div className="shrink-0 flex items-center gap-1.5 text-xs text-gray-400 mt-2">
+            {saveStatus === 'saving' ? (
+              <>
+                <span className="w-3 h-3 rounded-full border-2 border-orange-400 border-t-transparent animate-spin" />
+                <span>Saving…</span>
+              </>
+            ) : (
+              <>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-green-600">
+                  <path d="M2 6l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span>Saved</span>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <AnimatePresence mode="wait">

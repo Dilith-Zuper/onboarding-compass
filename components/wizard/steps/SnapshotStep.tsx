@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CONFIG_MATRIX } from '@/lib/configMatrix';
 import { ModuleCard } from '../modules/ModuleCard';
@@ -19,6 +19,7 @@ interface Props {
   changeRequests: Record<string, string>;
   saEmail: string;
   onChangeRequest: (module: string, text: string) => void;
+  onSnapshotReady: (snapshot: any) => void;
   onNext: () => void;
 }
 
@@ -33,16 +34,11 @@ const TAB_LABELS: Record<string, string> = {
   cpq:           'Proposals',
 };
 
-export function SnapshotStep({ token, snapshot, answers, changeRequests, saEmail, onChangeRequest, onNext }: Props) {
+export function SnapshotStep({ token, snapshot, answers, changeRequests, saEmail, onChangeRequest, onSnapshotReady, onNext }: Props) {
   const [activeTab, setActiveTab] = useState('categories');
 
   if (!snapshot) {
-    return (
-      <div className="max-w-[760px] mx-auto px-6 py-12 text-center">
-        <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin mx-auto mb-4" />
-        <p className="text-sm text-gray-500">Fetching your account data…</p>
-      </div>
-    );
+    return <SnapshotPolling token={token} onReady={onSnapshotReady} />;
   }
 
   const categories: ZuperCategory[]       = snapshot.categories    ?? [];
@@ -154,6 +150,68 @@ export function SnapshotStep({ token, snapshot, answers, changeRequests, saEmail
       >
         Review and submit →
       </button>
+    </div>
+  );
+}
+
+// ─── Snapshot polling (shown when snapshot is still being fetched) ───────────
+
+const POLL_MESSAGES = [
+  'Connecting to your Zuper account…',
+  'Loading your job categories and statuses…',
+  'Reading checklists for each category…',
+  'Fetching notifications and automations…',
+  'Almost there — translating workflows into plain English…',
+];
+
+function SnapshotPolling({ token, onReady }: { token: string; onReady: (s: any) => void }) {
+  const [msgIndex, setMsgIndex] = useState(0);
+  const [stalled, setStalled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const startedAt = Date.now();
+
+    const messageRotation = setInterval(() => {
+      setMsgIndex((i) => Math.min(i + 1, POLL_MESSAGES.length - 1));
+    }, 3000);
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/customer/${token}`);
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.snapshot) {
+            clearInterval(messageRotation);
+            onReady(data.snapshot);
+            return;
+          }
+        }
+      } catch {
+        // ignore, retry on next tick
+      }
+
+      if (Date.now() - startedAt > 30_000) setStalled(true);
+      if (!cancelled) setTimeout(poll, 2000);
+    };
+
+    poll();
+    return () => {
+      cancelled = true;
+      clearInterval(messageRotation);
+    };
+  }, [token, onReady]);
+
+  return (
+    <div className="max-w-[760px] mx-auto px-6 py-16 text-center">
+      <div className="w-10 h-10 rounded-full border-2 border-orange-500 border-t-transparent animate-spin mx-auto mb-6" />
+      <p className="text-base font-semibold text-[#1A1A1A] mb-2">{POLL_MESSAGES[msgIndex]}</p>
+      <p className="text-xs text-gray-400">
+        {stalled
+          ? 'Still working… your account may have a lot of data. Hang tight.'
+          : 'This usually takes 10–20 seconds.'}
+      </p>
     </div>
   );
 }

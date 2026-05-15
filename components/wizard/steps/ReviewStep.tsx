@@ -12,9 +12,10 @@ interface Props {
   saEmail: string;
   answers: Record<string, any>;
   changeRequests: Record<string, string>;
+  isPreview: boolean;
 }
 
-export function ReviewStep({ token, orgName, customerName, saEmail, answers, changeRequests }: Props) {
+export function ReviewStep({ token, orgName, customerName, saEmail, answers, changeRequests, isPreview }: Props) {
   const contactEmail = saEmail || 'onboarding@zuper.co';
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -163,18 +164,32 @@ export function ReviewStep({ token, orgName, customerName, saEmail, answers, cha
         </div>
       )}
 
-      <button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="w-full h-12 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors text-base flex items-center justify-center gap-2"
-      >
-        {loading ? (
-          <>
-            <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-            Submitting…
-          </>
-        ) : 'Submit to my SA →'}
-      </button>
+      {isPreview ? (
+        <div className="space-y-2">
+          <button
+            disabled
+            className="w-full h-12 bg-gray-200 text-gray-400 cursor-not-allowed font-semibold rounded-full text-base"
+          >
+            Submit disabled in preview
+          </button>
+          <p className="text-center text-xs text-gray-400">
+            You&apos;re viewing this in preview mode. Close the tab when done.
+          </p>
+        </div>
+      ) : (
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="w-full h-12 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors text-base flex items-center justify-center gap-2"
+        >
+          {loading ? (
+            <>
+              <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+              Submitting…
+            </>
+          ) : 'Submit to my SA →'}
+        </button>
+      )}
     </div>
   );
 }

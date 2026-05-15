@@ -40,22 +40,28 @@ interface WizardShellProps {
   snapshot: any;
   initialAnswers: Record<string, any>;
   initialChangeRequests: Record<string, string>;
+  initialCustomerName: string;
   hasZuperConnect: boolean;
+  isPreview: boolean;
 }
 
 export default function WizardShell({
   token,
   orgName,
   saEmail,
-  snapshot,
+  snapshot: initialSnapshot,
   initialAnswers,
   initialChangeRequests,
+  initialCustomerName,
   hasZuperConnect,
+  isPreview,
 }: WizardShellProps) {
-  const [step, setStep] = useState(0);
-  const [customerName, setCustomerName] = useState('');
+  // If returning customer (name already saved), skip the Welcome step
+  const [step, setStep] = useState(initialCustomerName ? 1 : 0);
+  const [customerName, setCustomerName] = useState(initialCustomerName);
   const [answers, setAnswers] = useState<Record<string, any>>(initialAnswers);
   const [changeRequests, setChangeRequests] = useState<Record<string, string>>(initialChangeRequests);
+  const [snapshot, setSnapshot] = useState<any>(initialSnapshot);
 
   const goTo = useCallback((nextStep: number) => {
     setStep(nextStep);
@@ -86,14 +92,32 @@ export default function WizardShell({
 
   return (
     <div className="min-h-screen bg-[#FAF9F7]">
+      {isPreview && (
+        <div className="sticky top-0 z-[60] bg-amber-50 border-b border-amber-200">
+          <div className="max-w-[760px] mx-auto px-6 py-2 flex items-center gap-3">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 text-amber-600">
+              <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.5"/>
+              <path d="M7 5v3M7 10v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            <p className="text-xs font-semibold text-amber-700 leading-tight">
+              Preview mode — nothing is saved. Close the tab when done.
+            </p>
+          </div>
+        </div>
+      )}
+
       <ProgressBar currentStep={step} totalSteps={5} />
 
-      {/* Constrain content width; px handles mobile gutter */}
       <div className="w-full">
         <AnimatePresence mode="wait">
           <WizardStep stepKey={`step-${step}`}>
             {step === 0 && (
-              <WelcomeStep orgName={orgName} onNext={handleWelcomeNext} />
+              <WelcomeStep
+                token={token}
+                orgName={orgName}
+                onNext={handleWelcomeNext}
+                isPreview={isPreview}
+              />
             )}
             {step === 1 && (
               <QuestionsStep
@@ -103,6 +127,7 @@ export default function WizardShell({
                 onAnswerChange={setAnswers}
                 onNext={handleQuestionsNext}
                 hasZuperConnect={hasZuperConnect}
+                isPreview={isPreview}
               />
             )}
             {step === 2 && (
@@ -122,6 +147,7 @@ export default function WizardShell({
                 onChangeRequest={(module, text) =>
                   setChangeRequests((prev) => ({ ...prev, [module]: text }))
                 }
+                onSnapshotReady={setSnapshot}
                 onNext={handleSnapshotNext}
               />
             )}
@@ -133,6 +159,7 @@ export default function WizardShell({
                 saEmail={saEmail}
                 answers={answers}
                 changeRequests={changeRequests}
+                isPreview={isPreview}
               />
             )}
           </WizardStep>

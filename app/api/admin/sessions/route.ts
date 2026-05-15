@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
   // Send invite email to customer (non-fatal)
   resend.emails.send({
     from: cleanEnv(process.env.RESEND_FROM_EMAIL) || 'onboarding@resend.dev',
-    to: ['dilith@zuper.co'], // testing override — change to customer_email for production
+    to: [customer_email],
     subject: `Your Zuper onboarding link — ${org_name}`,
     html: inviteEmailHtml(org_name, wizardLink, sa_email),
   }).catch((err) => console.error('Invite email failed:', err));

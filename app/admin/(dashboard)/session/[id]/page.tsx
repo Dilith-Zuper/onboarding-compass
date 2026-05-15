@@ -71,6 +71,14 @@ export default async function SessionDetailPage({ params }: { params: { id: stri
         <div className="flex items-center gap-3 mt-4 pt-4 border-t border-[#E5E2DC]">
           <span className="text-xs font-mono text-gray-400 flex-1 truncate">{customerLink}</span>
           <CopyButton text={customerLink} />
+          <a
+            href={`${customerLink}?preview=true`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-semibold text-orange-500 hover:text-orange-600 transition-colors whitespace-nowrap"
+          >
+            Preview as customer →
+          </a>
         </div>
       </div>
 

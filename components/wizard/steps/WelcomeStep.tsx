@@ -4,8 +4,10 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 
 interface WelcomeStepProps {
+  token: string;
   orgName: string;
   onNext: (customerName: string) => void;
+  isPreview: boolean;
 }
 
 const HIGHLIGHTS = [
@@ -46,12 +48,22 @@ const HIGHLIGHTS = [
   },
 ];
 
-export function WelcomeStep({ orgName, onNext }: WelcomeStepProps) {
+export function WelcomeStep({ token, orgName, onNext, isPreview }: WelcomeStepProps) {
   const [name, setName] = useState('');
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (name.trim()) onNext(name.trim());
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    // Persist name so the customer can resume without re-entering it
+    if (!isPreview) {
+      fetch(`/api/customer/${token}/response`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question_id: '__customer_name', answer: trimmed }),
+      }).catch(() => {});
+    }
+    onNext(trimmed);
   }
 
   return (
