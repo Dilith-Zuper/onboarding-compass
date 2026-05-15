@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const appUrl = cleanEnv(process.env.NEXT_PUBLIC_APP_URL) || req.nextUrl.origin;
   const wizardLink = `${appUrl}/w/${data.unique_token}`;
 
   // Fire snapshot fetch in background
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
 
   // Send invite email to customer (non-fatal)
   resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+    from: cleanEnv(process.env.RESEND_FROM_EMAIL) || 'onboarding@resend.dev',
     to: ['dilith@zuper.co'], // testing override — change to customer_email for production
     subject: `Your Zuper onboarding link — ${org_name}`,
     html: inviteEmailHtml(org_name, wizardLink, sa_email),

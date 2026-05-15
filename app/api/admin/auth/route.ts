@@ -102,12 +102,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const appUrl = cleanEnv(process.env.NEXT_PUBLIC_APP_URL) || req.nextUrl.origin;
     const magicLink = `${appUrl}/admin/login?email=${encodeURIComponent(email)}&code=${otp}`;
 
     try {
       await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+        from: cleanEnv(process.env.RESEND_FROM_EMAIL) || 'onboarding@resend.dev',
         to: [email],
         subject: `${otp} is your Onboarding Compass code`,
         html: otpEmailHtml(email, otp, magicLink),

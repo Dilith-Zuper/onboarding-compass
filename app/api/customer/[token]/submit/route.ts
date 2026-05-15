@@ -84,8 +84,8 @@ export async function POST(
 
   // 5. Send emails
   let emailSent = false;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@zuper.co';
+  const appUrl = cleanEnv(process.env.NEXT_PUBLIC_APP_URL) || req.nextUrl.origin;
+  const fromEmail = cleanEnv(process.env.RESEND_FROM_EMAIL) || 'onboarding@zuper.co';
 
   try {
     const saEmail = buildSAEmail({
