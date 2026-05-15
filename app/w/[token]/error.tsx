@@ -25,7 +25,7 @@ export default function WizardError({
             An error occurred
           </h1>
           <p className="text-sm text-gray-500 leading-relaxed mt-2">
-            Something unexpected happened loading your onboarding wizard. Try again or contact your SA.
+            Something unexpected happened loading your onboarding wizard. Try again or reach out at onboarding@zuper.co.
           </p>
         </div>
         <div className="flex gap-3">

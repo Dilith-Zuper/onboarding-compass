@@ -8,6 +8,7 @@ export type CompassNodeData = {
   nodeType: 'start' | 'job' | 'external' | 'action' | 'integration' | 'end';
   isOptional?: boolean;
   isExternal?: boolean;
+  notificationCount?: number;
 };
 
 export type CompassNode = Node<CompassNodeData, 'compass'>;
@@ -49,6 +50,21 @@ export function CompassNode({ data, selected }: NodeProps<CompassNode>) {
         {data.isExternal && (
           <span className="mt-1.5 inline-block text-[9px] font-bold uppercase tracking-widest text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full">
             External
+          </span>
+        )}
+        {!!data.notificationCount && data.notificationCount > 0 && (
+          <span
+            className={`mt-1.5 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
+              data.nodeType === 'start' || data.nodeType === 'end'
+                ? 'bg-white/15 text-white'
+                : 'bg-orange-50 text-orange-600'
+            }`}
+            title={`${data.notificationCount} notification${data.notificationCount === 1 ? '' : 's'} fire here`}
+          >
+            <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 4l4 3 4-3M2 4v6h8V4M2 4l4-2 4 2"/>
+            </svg>
+            {data.notificationCount} {data.notificationCount === 1 ? 'notif' : 'notifs'}
           </span>
         )}
       </div>

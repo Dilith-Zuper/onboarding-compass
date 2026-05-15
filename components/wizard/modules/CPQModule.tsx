@@ -55,9 +55,11 @@ const TIER_STYLES = [
 
 interface Props {
   selectedBrands: string[];
+  saEmail: string;
 }
 
-export function CPQModule({ selectedBrands }: Props) {
+export function CPQModule({ selectedBrands, saEmail }: Props) {
+  const contactEmail = saEmail || 'onboarding@zuper.co';
   const brands = selectedBrands.filter((b) => b !== 'other');
 
   if (!brands.length) {
@@ -78,7 +80,9 @@ export function CPQModule({ selectedBrands }: Props) {
           <path d="M9 8v5M9 6v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
         <p className="text-sm text-blue-700">
-          Your SA will build these Good / Better / Best proposals in Zuper CPQ before go-live.
+          These Good / Better / Best proposals will be built in Zuper CPQ before go-live.
+          Questions? Reach out at{' '}
+          <a href={`mailto:${contactEmail}`} className="underline underline-offset-2">{contactEmail}</a>.
         </p>
       </div>
 

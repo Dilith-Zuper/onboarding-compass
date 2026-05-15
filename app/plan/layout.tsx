@@ -2,24 +2,19 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { jwtVerify } from 'jose';
 import Link from 'next/link';
-import SignOutButton from '@/components/admin/SignOutButton';
 
 const secret = new TextEncoder().encode(process.env.ADMIN_JWT_SECRET!);
 
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function PlanLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = cookies();
   const token = cookieStore.get('admin_token')?.value;
 
-  let email = '';
-  if (token) {
-    try {
-      const { payload } = await jwtVerify(token, secret);
-      email = (payload.email as string) || '';
-    } catch {
-      redirect('/admin/login');
-    }
-  } else {
-    redirect('/admin/login');
+  if (!token) redirect('/admin/login?next=/plan');
+
+  try {
+    await jwtVerify(token, secret);
+  } catch {
+    redirect('/admin/login?next=/plan');
   }
 
   return (
@@ -38,15 +33,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               Onboarding Compass
             </span>
           </Link>
-          <div className="flex items-center gap-4">
-            {email && (
-              <span className="hidden sm:block text-xs text-gray-400 font-medium">{email}</span>
-            )}
-            <SignOutButton />
-          </div>
+          <Link
+            href="/admin"
+            className="text-xs font-semibold text-gray-400 hover:text-orange-500 transition-colors"
+          >
+            ← Dashboard
+          </Link>
         </div>
       </header>
-      <main className="max-w-[1100px] mx-auto px-6 py-12 space-y-8">
+      <main className="max-w-[1100px] mx-auto px-6 py-12">
         {children}
       </main>
     </div>

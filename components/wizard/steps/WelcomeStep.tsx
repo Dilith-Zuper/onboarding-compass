@@ -42,7 +42,7 @@ const HIGHLIGHTS = [
         <circle cx="9" cy="9" r="3"/>
       </svg>
     ),
-    text: 'Submit everything so your SA configures before go-live',
+    text: 'Submit everything — your account gets configured before go-live',
   },
 ];
 

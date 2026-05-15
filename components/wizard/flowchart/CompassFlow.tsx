@@ -12,36 +12,46 @@ import {
 // CSS imported globally in app/layout.tsx
 import { computeFlowVariant } from '@/lib/flow/variants';
 import { nodeTypes, type CompassNode } from './FlowNodes';
+import {
+  deriveNotificationsFromAnswers,
+  getAlwaysOnNotifications,
+  groupNotificationsByNode,
+  type DerivedNotification,
+} from '@/lib/notifications/derive';
 
-// Hardcoded positions for each known node ID.
-// fitView auto-zooms, so absolute coordinates just need to look good laid out.
 const NODE_POS: Record<string, { x: number; y: number }> = {
-  website_lead:       { x: 160, y: 0 },
-  lead_in:            { x: 160, y: 110 },
-  zuper_connect:      { x: 400, y: 110 },
-  hubspot_lead:       { x: 400, y: 220 },
-  lead_qualification: { x: 160, y: 220 },
-  inspection:         { x: 160, y: 350 },
-  insurance_claim:    { x: 400, y: 460 },
-  cpq:                { x: 160, y: 570 },
-  proposal:           { x: 160, y: 680 },
-  production:         { x: 160, y: 790 },
-  complete:           { x: 160, y: 900 },
+  website_lead:       { x: 160, y: 0    },
+  lead_in:            { x: 160, y: 110  },
+  zuper_connect:      { x: 400, y: 110  },
+  hubspot_lead:       { x: 400, y: 220  },
+  lead_qualification: { x: 160, y: 220  },
+  inspection:         { x: 160, y: 350  },
+  insurance_claim:    { x: 400, y: 460  },
+  cpq:                { x: 160, y: 570  },
+  proposal:           { x: 160, y: 680  },
+  production:         { x: 160, y: 790  },
+  complete:           { x: 160, y: 900  },
+  invoicing:          { x: 160, y: 1010 },
 };
 
 interface Props {
   answers: Record<string, any>;
-  onNodeClick?: (label: string, description: string) => void;
+  onNodeClick?: (label: string, description: string, notifications?: DerivedNotification[]) => void;
 }
 
 export function CompassFlow({ answers, onNodeClick }: Props) {
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
 
   const variant = computeFlowVariant(answers);
-
   const variantNodes = variant.nodes;
 
-  // Stagger-reveal nodes 150ms apart whenever answers change
+  // Compute notifications per flow node — answers-driven + always-on defaults
+  const allNotifs = [
+    ...deriveNotificationsFromAnswers(answers),
+    ...getAlwaysOnNotifications(answers),
+  ];
+  const notifsByNode = groupNotificationsByNode(allNotifs);
+
   useEffect(() => {
     setRevealedIds(new Set());
     variantNodes.forEach((n, i) => {
@@ -64,6 +74,7 @@ export function CompassFlow({ answers, onNodeClick }: Props) {
         nodeType: n.type,
         isOptional: n.isOptional,
         isExternal: n.isExternal,
+        notificationCount: (notifsByNode[n.id] ?? []).length,
       },
     }));
 
@@ -84,9 +95,9 @@ export function CompassFlow({ answers, onNodeClick }: Props) {
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
       const data = node.data as { label: string; description: string };
-      onNodeClick?.(data.label, data.description);
+      onNodeClick?.(data.label, data.description, notifsByNode[node.id] ?? []);
     },
-    [onNodeClick]
+    [onNodeClick, notifsByNode]
   );
 
   return (

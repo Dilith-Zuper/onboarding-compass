@@ -71,18 +71,24 @@ export const ALL_FLOW_NODES: Record<string, FlowNode> = {
     type: 'job',
     description: 'Once approved, production jobs are created — tear off, install, cleanup — each with their own checklist.',
   },
+  complete: {
+    id: 'complete',
+    label: 'Job Complete',
+    type: 'job',
+    description: 'Work is finished on site. Photos uploaded, sign-off captured, cleanup confirmed.',
+  },
+  invoicing: {
+    id: 'invoicing',
+    label: 'Invoicing & Closeout',
+    type: 'end',
+    description: 'Invoice issued, payment collected, closeout docs sent (warranty, photos, review request).',
+  },
   zuper_connect: {
     id: 'zuper_connect',
     label: 'Zuper Connect',
     type: 'integration',
     description: 'Inbound calls and texts from customers are logged here and linked to jobs.',
     isOptional: true,
-  },
-  complete: {
-    id: 'complete',
-    label: 'Job Complete ✓',
-    type: 'end',
-    description: 'Invoice sent. Payment collected. Review requested.',
   },
 };
 
@@ -92,10 +98,14 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
 
   const hasQualification = answers['has_lead_qualification'] === 'yes';
   const qualPlatform = answers['qualification_platform'];
-  const doesInsurance = answers['does_insurance'] !== 'no';
+  const jobTypes: string[] = Array.isArray(answers['job_types']) ? answers['job_types'] : [];
+  const doesInsurance = jobTypes.includes('insurance_storm');
+  const hasRetail = jobTypes.some((t) => t !== 'insurance_storm');
   const usesConnect = answers['uses_zuper_connect'] === 'yes';
   const hasWidget = answers['wants_booking_widget'] === 'yes';
+  const paymentTiming = answers['payment_timing'];
 
+  // ── Entry point ──
   if (hasWidget) {
     nodes.push(ALL_FLOW_NODES.website_lead);
     nodes.push(ALL_FLOW_NODES.lead_in);
@@ -104,6 +114,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
     nodes.push(ALL_FLOW_NODES.lead_in);
   }
 
+  // ── Qualification ──
   if (hasQualification && qualPlatform === 'hubspot') {
     nodes.push(ALL_FLOW_NODES.hubspot_lead);
     edges.push({ from: 'lead_in', to: 'hubspot_lead' });
@@ -119,26 +130,47 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
     edges.push({ from: 'lead_in', to: 'inspection' });
   }
 
+  // ── Insurance branch ──
   if (doesInsurance) {
     nodes.push(ALL_FLOW_NODES.insurance_claim);
     edges.push({ from: 'inspection', to: 'insurance_claim', label: 'Insurance job' });
     nodes.push(ALL_FLOW_NODES.cpq);
     edges.push({ from: 'insurance_claim', to: 'cpq', label: 'Approved' });
-    edges.push({ from: 'inspection', to: 'cpq', label: 'Retail job' });
+    if (hasRetail) {
+      edges.push({ from: 'inspection', to: 'cpq', label: 'Retail job' });
+    }
   } else {
     nodes.push(ALL_FLOW_NODES.cpq);
     edges.push({ from: 'inspection', to: 'cpq' });
   }
 
+  // ── Proposal ──
   nodes.push(ALL_FLOW_NODES.proposal);
   edges.push({ from: 'cpq', to: 'proposal' });
 
+  // ── Production ──
   nodes.push(ALL_FLOW_NODES.production);
   edges.push({ from: 'proposal', to: 'production', label: 'Customer approved' });
 
+  // ── Job Complete (work done in field) ──
   nodes.push(ALL_FLOW_NODES.complete);
   edges.push({ from: 'production', to: 'complete' });
 
+  // ── Invoicing & Closeout (terminal node) ──
+  const invoicingNode: FlowNode = { ...ALL_FLOW_NODES.invoicing };
+  if (paymentTiming === 'day_of_install') {
+    invoicingNode.description = 'Payment collected on install day. Invoice marked paid immediately. Closeout docs follow.';
+  } else if (paymentTiming === 'few_days_after') {
+    invoicingNode.description = 'Invoice issued on completion, payment collected within a few days. Closeout docs sent on payment.';
+  } else if (paymentTiming === 'invoice_after') {
+    invoicingNode.description = 'Invoice sent after job is done — customer pays on receipt. Closeout docs follow.';
+  } else if (paymentTiming === 'varies') {
+    invoicingNode.description = 'Billing rules vary by job type — set up per category. Closeout docs sent on payment.';
+  }
+  nodes.push(invoicingNode);
+  edges.push({ from: 'complete', to: 'invoicing' });
+
+  // ── Zuper Connect (parallel) ──
   if (usesConnect) {
     nodes.push(ALL_FLOW_NODES.zuper_connect);
     edges.push({ from: 'lead_in', to: 'zuper_connect', label: 'Calls & texts' });

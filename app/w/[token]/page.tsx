@@ -7,7 +7,7 @@ export default async function WizardPage({ params }: { params: { token: string }
 
   const { data: session, error } = await supabase
     .from('sessions')
-    .select('id, org_name, customer_email, sa_email, status, unique_token')
+    .select('id, org_name, customer_email, sa_email, status, unique_token, has_zuper_connect')
     .eq('unique_token', params.token)
     .single();
 
@@ -58,9 +58,11 @@ export default async function WizardPage({ params }: { params: { token: string }
     <WizardShell
       token={params.token}
       orgName={session.org_name}
+      saEmail={session.sa_email}
       snapshot={snapshot}
       initialAnswers={initialAnswers}
       initialChangeRequests={initialChangeRequests}
+      hasZuperConnect={session.has_zuper_connect ?? false}
     />
   );
 }

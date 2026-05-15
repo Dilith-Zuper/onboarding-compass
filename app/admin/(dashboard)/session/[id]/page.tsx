@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { formatDistanceToNow, format } from 'date-fns';
 import { CopyButton } from '@/components/admin/CopyButton';
-import { GoLiveButton } from '@/components/admin/GoLiveButton';
 import { RefreshSnapshotButton } from '@/components/admin/RefreshSnapshotButton';
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
@@ -149,7 +148,7 @@ export default async function SessionDetailPage({ params }: { params: { id: stri
             <InfoField label="Submitted"   value={format(new Date(submission.submitted_at), 'MMM d, yyyy HH:mm')} />
             <InfoField label="Flow variant" value={submission.flow_variant || '—'} />
             <InfoField label="Brands"       value={submission.selected_brands?.join(', ') || '—'} />
-            <InfoField label="Vendors"      value={submission.selected_vendors?.join(', ') || '—'} />
+            <InfoField label="Suppliers"    value={submission.selected_vendors?.join(', ') || '—'} />
             {submission.pdf_url && (
               <a href={submission.pdf_url} target="_blank" rel="noreferrer"
                 className="text-xs font-semibold text-orange-500 hover:text-orange-600 transition-colors">
@@ -160,26 +159,6 @@ export default async function SessionDetailPage({ params }: { params: { id: stri
         </Section>
       )}
 
-      {/* Go-live report */}
-      {(session.status === 'submitted' || session.status === 'live') && (
-        <Section title="Go-live report">
-          {session.status === 'live' ? (
-            <p className="text-sm text-gray-500">
-              This session is live. Go-live report has been generated and emailed to{' '}
-              <span className="font-medium text-[#1A1A1A]">support@zuper.co</span>.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-500 leading-relaxed">
-                When configuration is complete, generate the go-live report. This will fetch the
-                current Zuper account state, diff it against the original snapshot, generate a PDF,
-                and email it to <span className="font-medium text-[#1A1A1A]">support@zuper.co</span>.
-              </p>
-              <GoLiveButton sessionId={params.id} orgName={session.org_name} />
-            </div>
-          )}
-        </Section>
-      )}
     </div>
   );
 }

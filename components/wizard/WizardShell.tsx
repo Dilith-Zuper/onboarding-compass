@@ -36,17 +36,21 @@ const ReviewStep = dynamic(
 interface WizardShellProps {
   token: string;
   orgName: string;
+  saEmail: string;
   snapshot: any;
   initialAnswers: Record<string, any>;
   initialChangeRequests: Record<string, string>;
+  hasZuperConnect: boolean;
 }
 
 export default function WizardShell({
   token,
   orgName,
+  saEmail,
   snapshot,
   initialAnswers,
   initialChangeRequests,
+  hasZuperConnect,
 }: WizardShellProps) {
   const [step, setStep] = useState(0);
   const [customerName, setCustomerName] = useState('');
@@ -93,10 +97,12 @@ export default function WizardShell({
             )}
             {step === 1 && (
               <QuestionsStep
+                token={token}
                 customerName={customerName}
                 answers={answers}
                 onAnswerChange={setAnswers}
                 onNext={handleQuestionsNext}
+                hasZuperConnect={hasZuperConnect}
               />
             )}
             {step === 2 && (
@@ -112,6 +118,7 @@ export default function WizardShell({
                 snapshot={snapshot}
                 answers={answers}
                 changeRequests={changeRequests}
+                saEmail={saEmail}
                 onChangeRequest={(module, text) =>
                   setChangeRequests((prev) => ({ ...prev, [module]: text }))
                 }
@@ -123,6 +130,7 @@ export default function WizardShell({
                 token={token}
                 orgName={orgName}
                 customerName={customerName}
+                saEmail={saEmail}
                 answers={answers}
                 changeRequests={changeRequests}
               />

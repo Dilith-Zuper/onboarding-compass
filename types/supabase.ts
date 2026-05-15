@@ -6,6 +6,7 @@ export interface Session {
   dc_region: string;
   zuper_api_key: string;
   unique_token: string;
+  has_zuper_connect: boolean;
   status: 'pending' | 'in_progress' | 'submitted' | 'live';
   created_at: string;
   updated_at: string;
@@ -47,18 +48,7 @@ export interface Submission {
   flow_variant: string | null;
   selected_brands: string[] | null;
   selected_vendors: string[] | null;
-  insurance_percentage: number | null;
   pdf_url: string | null;
   email_sent: boolean;
 }
 
-export interface GoLiveReport {
-  id: string;
-  session_id: string;
-  generated_at: string;
-  generated_by: string | null;
-  snapshot_at_golive: any;
-  diff_summary: any;
-  pdf_url: string | null;
-  report_token: string;
-}

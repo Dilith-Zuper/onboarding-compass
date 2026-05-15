@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { org_name, customer_email, sa_email, zuper_api_key, dc_region } = body;
+  const { org_name, customer_email, sa_email, zuper_api_key, dc_region, has_zuper_connect } = body;
 
   if (!org_name || !customer_email || !sa_email || !zuper_api_key || !dc_region) {
     return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('sessions')
-    .insert({ org_name, customer_email, sa_email, zuper_api_key, dc_region })
+    .insert({ org_name, customer_email, sa_email, zuper_api_key, dc_region, has_zuper_connect: has_zuper_connect ?? false })
     .select()
     .single();
 

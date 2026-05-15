@@ -32,7 +32,7 @@ export default async function AdminDashboard() {
           </h1>
         </div>
         <Link
-          href="/admin/new"
+          href="/plan"
           className="h-10 px-5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-full transition-colors text-sm flex items-center gap-2"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" strokeLinecap="round" strokeLinejoin="round">
@@ -51,15 +51,15 @@ export default async function AdminDashboard() {
             Create a session to generate a customer onboarding link.
           </p>
           <Link
-            href="/admin/new"
+            href="/plan"
             className="inline-flex h-10 px-5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-full transition-colors text-sm items-center"
           >
             New session →
           </Link>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-[#E5E2DC] overflow-hidden overflow-x-auto">
-          <table className="w-full text-sm min-w-[640px]">
+        <div className="bg-white rounded-2xl border border-[#E5E2DC] overflow-hidden">
+          <table className="w-full text-sm">
             <thead>
               <tr className="bg-[#F5F3F0]">
                 {['Organisation', 'Customer', 'SA', 'Status', 'Created', ''].map((h) => (
@@ -83,17 +83,21 @@ export default async function AdminDashboard() {
                     <td className="px-5 py-4 font-semibold text-[#1A1A1A]">
                       {s.org_name}
                     </td>
-                    <td className="px-5 py-4 text-gray-500">{s.customer_email}</td>
-                    <td className="px-5 py-4 text-gray-500">{s.sa_email}</td>
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-4 text-gray-500 text-xs">
+                      {s.customer_email}
+                    </td>
+                    <td className="px-5 py-4 text-gray-500 text-xs">
+                      {s.sa_email}
+                    </td>
+                    <td className="px-5 py-4 whitespace-nowrap">
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${badge.cls}`}>
                         {badge.label}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-xs text-gray-400">
+                    <td className="px-5 py-4 text-xs text-gray-400 whitespace-nowrap">
                       {formatDistanceToNow(new Date(s.created_at), { addSuffix: true })}
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-4">
                         <Link
                           href={`/admin/session/${s.id}`}

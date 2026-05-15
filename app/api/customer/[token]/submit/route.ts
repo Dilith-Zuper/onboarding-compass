@@ -127,16 +127,13 @@ export async function POST(
 
   // 6. Create submission record
   const selectedBrands = Array.isArray(answers['brands']) ? answers['brands'] : [];
-  const selectedVendors = Array.isArray(answers['vendors']) ? answers['vendors'] : [];
-  const insuranceRaw = answers['insurance_percentage'];
-  const insurancePct = insuranceRaw ? parseInt(String(insuranceRaw).replace('%', ''), 10) || null : null;
+  const selectedSuppliers = Array.isArray(answers['suppliers']) ? answers['suppliers'] : [];
 
   await supabase.from('submissions').insert({
     session_id: session.id,
     submitted_at: submittedAt,
     selected_brands: selectedBrands,
-    selected_vendors: selectedVendors,
-    insurance_percentage: insurancePct,
+    selected_vendors: selectedSuppliers,
     pdf_url: pdfUrl,
     email_sent: emailSent,
   });

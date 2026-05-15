@@ -30,7 +30,7 @@ const NEXT_STEPS = [
       </svg>
     ),
     title: 'Go-live call',
-    desc: () => "Your SA will schedule a walkthrough call before go-live.",
+    desc: (sa: string) => `${sa} will schedule a walkthrough call before go-live.`,
   },
 ];
 
@@ -97,7 +97,11 @@ export default async function SubmittedPage({ params }: { params: { token: strin
         </div>
 
         <p className="text-xs text-gray-400 text-center">
-          Questions?{' '}
+          Questions? Reach out at{' '}
+          <a href={`mailto:${session.sa_email}`} className="text-orange-500 hover:text-orange-600 transition-colors underline underline-offset-2">
+            {session.sa_email}
+          </a>
+          {' '}or{' '}
           <a href="mailto:onboarding@zuper.co" className="text-orange-500 hover:text-orange-600 transition-colors underline underline-offset-2">
             onboarding@zuper.co
           </a>

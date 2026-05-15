@@ -23,12 +23,13 @@ export function computeScore(
   changeRequests: Record<string, string>
 ): number {
   let score = 0;
-  const flowKeys = ['has_lead_qualification', 'does_insurance', 'uses_zuper_connect', 'wants_booking_widget', 'qualification_platform'];
+  const flowKeys = ['has_lead_qualification', 'job_types', 'uses_zuper_connect', 'wants_booking_widget', 'qualification_platform'];
   for (const k of flowKeys) {
-    if (answers[k]) score += 15;
+    const v = answers[k];
+    if (Array.isArray(v) ? v.length > 0 : !!v) score += 15;
   }
-  if (answers['brands']?.length > 0)  score += 10;
-  if (answers['vendors']?.length > 0) score += 5;
+  if (answers['brands']?.length > 0)    score += 10;
+  if (answers['suppliers']?.length > 0) score += 5;
   const crCount = Object.values(changeRequests).filter((v) => v?.trim()).length;
   score += Math.min(crCount * 5, 25);
   return Math.min(score, 100);

@@ -8,6 +8,7 @@ CREATE TABLE sessions (
   dc_region TEXT NOT NULL DEFAULT 'us-east-1',
   zuper_api_key TEXT NOT NULL,
   unique_token TEXT UNIQUE NOT NULL DEFAULT encode(gen_random_bytes(24), 'hex'),
+  has_zuper_connect BOOLEAN NOT NULL DEFAULT false,
   status TEXT NOT NULL DEFAULT 'pending',
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -55,17 +56,6 @@ CREATE TABLE submissions (
   email_sent BOOLEAN DEFAULT false
 );
 
-CREATE TABLE golive_reports (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
-  generated_at TIMESTAMPTZ DEFAULT now(),
-  generated_by TEXT,
-  snapshot_at_golive JSONB,
-  diff_summary JSONB,
-  pdf_url TEXT,
-  report_token TEXT UNIQUE DEFAULT encode(gen_random_bytes(16), 'hex')
-);
-
 -- Admin OTP codes (email-based login, zuper.co only)
 CREATE TABLE admin_otps (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -81,4 +71,3 @@ ALTER TABLE snapshots DISABLE ROW LEVEL SECURITY;
 ALTER TABLE responses DISABLE ROW LEVEL SECURITY;
 ALTER TABLE change_requests DISABLE ROW LEVEL SECURITY;
 ALTER TABLE submissions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE golive_reports DISABLE ROW LEVEL SECURITY;

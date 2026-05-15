@@ -17,6 +17,7 @@ interface Props {
   snapshot: any;
   answers: Record<string, any>;
   changeRequests: Record<string, string>;
+  saEmail: string;
   onChangeRequest: (module: string, text: string) => void;
   onNext: () => void;
 }
@@ -32,7 +33,7 @@ const TAB_LABELS: Record<string, string> = {
   cpq:           'Proposals',
 };
 
-export function SnapshotStep({ token, snapshot, answers, changeRequests, onChangeRequest, onNext }: Props) {
+export function SnapshotStep({ token, snapshot, answers, changeRequests, saEmail, onChangeRequest, onNext }: Props) {
   const [activeTab, setActiveTab] = useState('categories');
 
   if (!snapshot) {
@@ -123,9 +124,9 @@ export function SnapshotStep({ token, snapshot, answers, changeRequests, onChang
               {activeTab === 'categories'    && <CategoriesModule    categories={categories} />}
               {activeTab === 'statuses'      && <StatusesModule      categories={categories} />}
               {activeTab === 'checklists'    && <ChecklistsModule    checklists={checklists} />}
-              {activeTab === 'notifications' && <NotificationsModule notifications={notifications} />}
+              {activeTab === 'notifications' && <NotificationsModule notifications={notifications} answers={answers} />}
               {activeTab === 'workflows'     && <WorkflowsModule     workflows={workflows} explanations={explanations} token={token} />}
-              {activeTab === 'cpq'           && <CPQModule           selectedBrands={selectedBrands} />}
+              {activeTab === 'cpq'           && <CPQModule           selectedBrands={selectedBrands} saEmail={saEmail} />}
             </ModuleCard>
           </div>
         </motion.div>

@@ -3,17 +3,19 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { QUESTIONS } from '@/lib/questions';
+import { QUESTIONS, computeWidgetMode } from '@/lib/questions';
 import { CONFIG_MATRIX } from '@/lib/configMatrix';
 interface Props {
   token: string;
   orgName: string;
   customerName: string;
+  saEmail: string;
   answers: Record<string, any>;
   changeRequests: Record<string, string>;
 }
 
-export function ReviewStep({ token, orgName, customerName, answers, changeRequests }: Props) {
+export function ReviewStep({ token, orgName, customerName, saEmail, answers, changeRequests }: Props) {
+  const contactEmail = saEmail || 'onboarding@zuper.co';
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -72,7 +74,7 @@ export function ReviewStep({ token, orgName, customerName, answers, changeReques
           Review &amp; submit
         </h1>
         <p className="text-sm text-gray-500 leading-relaxed mt-2">
-          Check everything looks right, then submit to your SA.
+          Check everything looks right, then submit to {contactEmail}.
         </p>
       </motion.div>
 
@@ -95,6 +97,25 @@ export function ReviewStep({ token, orgName, customerName, answers, changeReques
         </div>
       )}
 
+      {/* Widget mode callout */}
+      {(() => {
+        const widget = computeWidgetMode(answers);
+        if (!widget) return null;
+        return (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4 flex items-start gap-3">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0 mt-0.5 text-blue-600">
+              <rect x="2" y="3" width="14" height="11" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+              <path d="M5 7h8M5 10h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            <div>
+              <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-0.5">Booking widget</p>
+              <p className="text-sm font-semibold text-blue-900">{widget.mode}</p>
+              <p className="text-xs text-blue-700 mt-0.5 leading-relaxed">{widget.description}</p>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Change requests */}
       <div>
         <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-3">
@@ -102,7 +123,7 @@ export function ReviewStep({ token, orgName, customerName, answers, changeReques
         </p>
         {activeRequests.length === 0 ? (
           <div className="bg-white rounded-2xl border border-[#E5E2DC] px-5 py-4">
-            <p className="text-sm text-gray-400">No change requests. Your SA will configure the defaults.</p>
+            <p className="text-sm text-gray-400">No change requests — defaults will be configured as standard.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -120,11 +141,19 @@ export function ReviewStep({ token, orgName, customerName, answers, changeReques
       <div className="bg-[#F5F3F0] rounded-2xl px-5 py-4">
         <p className="text-xs text-gray-500 leading-relaxed">
           By submitting, you confirm these are your requirements for the {orgName} Zuper setup.
-          Your SA will review and configure accordingly. You can email{' '}
-          <a href="mailto:onboarding@zuper.co" className="text-orange-500 underline underline-offset-2">
-            onboarding@zuper.co
-          </a>{' '}
-          after submission if anything changes.
+          If anything changes after submission, email{' '}
+          <a href={`mailto:${contactEmail}`} className="text-orange-500 underline underline-offset-2">
+            {contactEmail}
+          </a>
+          {saEmail && (
+            <>
+              {' '}or{' '}
+              <a href="mailto:onboarding@zuper.co" className="text-orange-500 underline underline-offset-2">
+                onboarding@zuper.co
+              </a>
+            </>
+          )}
+          .
         </p>
       </div>
 

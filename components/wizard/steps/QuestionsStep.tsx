@@ -1,9 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getVisibleQuestions, Question } from '@/lib/questions';
+import {
+  getQuestionsBySection,
+  getEffectiveSubtext,
+  getEffectiveOptions,
+  Question,
+  Section,
+} from '@/lib/questions';
 import { showToast } from '../gamification/MilestoneToast';
+import { FileUploadField } from './FileUploadField';
 
 const PAGE_SIZE = 6;
 
@@ -13,22 +20,61 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
+interface Page {
+  section: Section;
+  questions: Question[];
+  /** 1-based: which page of its section this is (e.g. 2 of 3) */
+  sectionPageIndex: number;
+  sectionPageCount: number;
+}
+
 interface Props {
+  token: string;
   customerName: string;
   answers: Record<string, any>;
   onAnswerChange: (a: Record<string, any>) => void;
   onNext: (a: Record<string, any>) => void;
+  hasZuperConnect: boolean;
 }
 
-export function QuestionsStep({ customerName, answers, onAnswerChange, onNext }: Props) {
+export function QuestionsStep({
+  token,
+  customerName,
+  answers,
+  onAnswerChange,
+  onNext,
+  hasZuperConnect,
+}: Props) {
   const [localAnswers, setLocalAnswers] = useState<Record<string, any>>(answers);
   const [pageIndex, setPageIndex] = useState(0);
   const [otherText, setOtherText] = useState<Record<string, string>>({});
 
-  const visible = getVisibleQuestions(localAnswers);
-  const pages = chunk(visible, PAGE_SIZE);
-  const currentPage = pages[pageIndex] ?? [];
-  const isLastPage = pageIndex >= pages.length - 1;
+  const sessionFlags = { hasZuperConnect };
+
+  // Build pages: each page contains questions from a single section (up to PAGE_SIZE).
+  // Recomputed each render so newly-visible conditional questions appear.
+  const pages: Page[] = useMemo(() => {
+    const grouped = getQuestionsBySection(localAnswers, sessionFlags);
+    const out: Page[] = [];
+    for (const { section, questions } of grouped) {
+      const chunks = chunk(questions, PAGE_SIZE);
+      chunks.forEach((qs, i) => {
+        out.push({
+          section,
+          questions: qs,
+          sectionPageIndex: i + 1,
+          sectionPageCount: chunks.length,
+        });
+      });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localAnswers, hasZuperConnect]);
+
+  // Clamp pageIndex if pages shrink (e.g. conditional question disappears)
+  const safePageIndex = Math.min(pageIndex, Math.max(0, pages.length - 1));
+  const currentPage = pages[safePageIndex];
+  const isLastPage = safePageIndex >= pages.length - 1;
 
   function setAnswer(id: string, value: any) {
     const next = { ...localAnswers, [id]: value };
@@ -39,11 +85,12 @@ export function QuestionsStep({ customerName, answers, onAnswerChange, onNext }:
     }
   }
 
-  const pageComplete = currentPage.every((q) => {
+  const pageComplete = (currentPage?.questions ?? []).every((q) => {
     if (!q.required) return true;
     const a = localAnswers[q.id];
     if (a === undefined || a === null || a === '') return false;
     if (Array.isArray(a) && a.length === 0) return false;
+    if (q.type === 'file_upload' && (!a || typeof a !== 'object' || !a.url)) return false;
     return true;
   });
 
@@ -52,38 +99,56 @@ export function QuestionsStep({ customerName, answers, onAnswerChange, onNext }:
     if (isLastPage) {
       onNext(localAnswers);
     } else {
-      setPageIndex((p) => p + 1);
+      // Detect section transition for milestone toast
+      const next = pages[safePageIndex + 1];
+      if (next && next.section.id !== currentPage.section.id) {
+        showToast(`Next up: ${next.section.label}.`);
+      }
+      setPageIndex(safePageIndex + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }
 
+  if (!currentPage) {
+    return (
+      <div className="max-w-[760px] mx-auto px-6 py-12">
+        <p className="text-sm text-gray-500">Loading questions…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-[760px] mx-auto px-6 py-12 space-y-8">
+      {/* Section header */}
       <div>
         <p className="text-[11px] font-bold uppercase tracking-widest text-orange-500 mb-2">
-          Questions · {pageIndex + 1} of {pages.length}
+          {currentPage.section.label}
+          {currentPage.sectionPageCount > 1 && (
+            <span className="text-gray-400 font-semibold"> · {currentPage.sectionPageIndex} of {currentPage.sectionPageCount}</span>
+          )}
+          <span className="text-gray-400 font-semibold"> · Step {safePageIndex + 1} of {pages.length}</span>
         </p>
-        <h1 className="text-[32px] font-extrabold text-[#1A1A1A] leading-tight">
-          How do you run your business?
+        <h1 className="text-[28px] sm:text-[32px] font-extrabold text-[#1A1A1A] leading-tight">
+          {customerName ? `Hi ${customerName} — ` : ''}{currentPage.section.description}
         </h1>
-        <p className="text-sm text-gray-500 leading-relaxed mt-2">
-          Hi {customerName} — these answers shape your personalised Zuper workflow.
-        </p>
       </div>
 
       <AnimatePresence mode="wait">
         <motion.div
-          key={pageIndex}
+          key={safePageIndex}
           initial={{ opacity: 0, x: 24 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -24 }}
           transition={{ duration: 0.25 }}
           className="space-y-6"
         >
-          {currentPage.map((q) => (
+          {currentPage.questions.map((q) => (
             <QuestionField
               key={q.id}
+              token={token}
               question={q}
+              subtext={getEffectiveSubtext(q, localAnswers)}
+              effectiveOptions={getEffectiveOptions(q, localAnswers)}
               value={localAnswers[q.id]}
               otherValue={otherText[q.id] || ''}
               onOtherChange={(v) => setOtherText((prev) => ({ ...prev, [q.id]: v }))}
@@ -94,9 +159,12 @@ export function QuestionsStep({ customerName, answers, onAnswerChange, onNext }:
       </AnimatePresence>
 
       <div className="flex gap-3 pt-2">
-        {pageIndex > 0 && (
+        {safePageIndex > 0 && (
           <button
-            onClick={() => { setPageIndex((p) => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            onClick={() => {
+              setPageIndex(safePageIndex - 1);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
             className="flex-1 h-12 border border-[#E5E2DC] text-gray-600 font-semibold rounded-full hover:bg-gray-50 transition-colors text-base"
           >
             ← Back
@@ -117,9 +185,19 @@ export function QuestionsStep({ customerName, answers, onAnswerChange, onNext }:
 // ─── Question Field ──────────────────────────────────────────────────────────
 
 function QuestionField({
-  question, value, otherValue, onOtherChange, onChange,
+  token,
+  question,
+  subtext,
+  effectiveOptions,
+  value,
+  otherValue,
+  onOtherChange,
+  onChange,
 }: {
+  token: string;
   question: Question;
+  subtext?: string;
+  effectiveOptions: { value: string; label: string }[];
   value: any;
   otherValue: string;
   onOtherChange: (v: string) => void;
@@ -129,14 +207,14 @@ function QuestionField({
     <div className="space-y-3">
       <div>
         <p className="text-[17px] font-extrabold text-[#1A1A1A] leading-snug">{question.text}</p>
-        {question.subtext && (
-          <p className="text-sm text-gray-500 leading-relaxed mt-1">{question.subtext}</p>
+        {subtext && (
+          <p className="text-sm text-gray-500 leading-relaxed mt-1 whitespace-pre-line">{subtext}</p>
         )}
       </div>
 
       {question.type === 'single_select' && (
         <div className="space-y-2">
-          {question.options?.map((opt) => {
+          {effectiveOptions.map((opt) => {
             const sel = value === opt.value;
             return (
               <button
@@ -163,24 +241,47 @@ function QuestionField({
         </div>
       )}
 
-      {question.type === 'multi_select' && (
-        <div className="space-y-2">
-          {question.options?.map((opt) => {
-            const current: string[] = Array.isArray(value) ? value : [];
-            const sel = current.includes(opt.value);
-            return (
+      {question.type === 'multi_select' && (() => {
+        const current: string[] = Array.isArray(value) ? value : [];
+        const otherSelected = current.includes('other');
+        return (
+          <div className="space-y-2">
+            {effectiveOptions.map((opt) => {
+              const sel = current.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => onChange(sel ? current.filter((v) => v !== opt.value) : [...current, opt.value])}
+                  className={`w-full text-left px-5 py-4 rounded-2xl border-2 transition-all ${
+                    sel ? 'border-orange-400 bg-orange-50' : 'border-[#E5E2DC] bg-white hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className={`text-sm font-semibold ${sel ? 'text-orange-700' : 'text-[#1A1A1A]'}`}>
+                      {opt.label}
+                    </span>
+                    {sel && (
+                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
+                        <circle cx="9" cy="9" r="8" fill="#F97316"/>
+                        <path d="M5.5 9l2.5 2.5 4.5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+            {question.otherOption && (
               <button
-                key={opt.value}
-                onClick={() => onChange(sel ? current.filter((v) => v !== opt.value) : [...current, opt.value])}
+                onClick={() => onChange(otherSelected ? current.filter((v) => v !== 'other') : [...current, 'other'])}
                 className={`w-full text-left px-5 py-4 rounded-2xl border-2 transition-all ${
-                  sel ? 'border-orange-400 bg-orange-50' : 'border-[#E5E2DC] bg-white hover:border-gray-300'
+                  otherSelected ? 'border-orange-400 bg-orange-50' : 'border-[#E5E2DC] bg-white hover:border-gray-300'
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className={`text-sm font-semibold ${sel ? 'text-orange-700' : 'text-[#1A1A1A]'}`}>
-                    {opt.label}
+                  <span className={`text-sm font-semibold ${otherSelected ? 'text-orange-700' : 'text-[#1A1A1A]'}`}>
+                    Other
                   </span>
-                  {sel && (
+                  {otherSelected && (
                     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
                       <circle cx="9" cy="9" r="8" fill="#F97316"/>
                       <path d="M5.5 9l2.5 2.5 4.5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -188,10 +289,25 @@ function QuestionField({
                   )}
                 </div>
               </button>
-            );
-          })}
-        </div>
-      )}
+            )}
+            {question.otherOption && otherSelected && (
+              <div className="bg-white rounded-2xl border border-[#E5E2DC] px-5 py-4 space-y-1 focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-100 transition-all">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Please specify
+                </label>
+                <input
+                  type="text"
+                  value={otherValue}
+                  onChange={(e) => onOtherChange(e.target.value)}
+                  placeholder="Type here…"
+                  autoFocus
+                  className="w-full text-[#1A1A1A] text-base placeholder-gray-300 focus:outline-none bg-transparent"
+                />
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {question.type === 'single_line' && (
         <div className="bg-white rounded-2xl border border-[#E5E2DC] px-5 py-4 space-y-1 focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-100 transition-all">
@@ -225,11 +341,20 @@ function QuestionField({
 
       {question.type === 'card_select' && (
         <CardSelect
-          options={question.options ?? []}
+          options={effectiveOptions}
           value={Array.isArray(value) ? value : []}
           otherValue={otherValue}
           onOtherChange={onOtherChange}
           hasOther={question.otherOption}
+          onChange={onChange}
+        />
+      )}
+
+      {question.type === 'file_upload' && (
+        <FileUploadField
+          token={token}
+          questionId={question.id}
+          value={value}
           onChange={onChange}
         />
       )}

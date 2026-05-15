@@ -16,7 +16,7 @@ export default function WizardNotFound() {
             This link doesn&apos;t work
           </h1>
           <p className="text-sm text-gray-500 leading-relaxed mt-2">
-            Your onboarding link may be incorrect or expired. Contact your Zuper SA to get a new link.
+            Your onboarding link may be incorrect or expired. Reach out at onboarding@zuper.co to get a new link.
           </p>
         </div>
         <p className="text-xs text-gray-400">
