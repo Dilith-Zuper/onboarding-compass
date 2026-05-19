@@ -222,8 +222,9 @@ export function OnboardingReport({
         {flowChartImage ? (
           <>
             <Text style={[s.body, { marginBottom: 10 }]}>
-              How {orgName}'s jobs will move through Zuper, based on the wizard answers.
+              {`How ${orgName}'s jobs will move through Zuper, based on the wizard answers.`}
             </Text>
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
             <Image src={flowChartImage} style={s.flowImage} />
           </>
         ) : (
