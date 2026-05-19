@@ -125,14 +125,18 @@ export function QuestionsStep({
     }
   }
 
-  const pageComplete = (currentPage?.questions ?? []).every((q) => {
-    if (!q.required) return true;
+  function isQuestionAnswered(q: Question): boolean {
     const a = localAnswers[q.id];
     if (a === undefined || a === null || a === '') return false;
     if (Array.isArray(a) && a.length === 0) return false;
     if (q.type === 'file_upload' && (!a || typeof a !== 'object' || !a.url)) return false;
     return true;
-  });
+  }
+
+  const missingRequired = (currentPage?.questions ?? []).filter(
+    (q) => q.required && !isQuestionAnswered(q)
+  );
+  const pageComplete = missingRequired.length === 0;
 
   function handleContinue() {
     if (!pageComplete) return;
@@ -218,6 +222,22 @@ export function QuestionsStep({
           ))}
         </motion.div>
       </AnimatePresence>
+
+      {!pageComplete && missingRequired.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700 mb-1.5">
+            Still needed — {missingRequired.length} question{missingRequired.length === 1 ? '' : 's'}
+          </p>
+          <ul className="space-y-1">
+            {missingRequired.map((q) => (
+              <li key={q.id} className="text-sm text-amber-800 leading-snug flex items-start gap-2">
+                <span className="text-amber-500 mt-0.5">•</span>
+                <span>{q.text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="flex gap-3 pt-2">
         {safePageIndex > 0 && (

@@ -5,6 +5,7 @@ import {
   ReactFlow,
   Background,
   Controls,
+  MiniMap,
   type Edge,
   type Node,
   MarkerType,
@@ -19,27 +20,13 @@ import {
   type DerivedNotification,
 } from '@/lib/notifications/derive';
 
-const NODE_POS: Record<string, { x: number; y: number }> = {
-  website_lead:       { x: 160, y: 0    },
-  lead_in:            { x: 160, y: 110  },
-  zuper_connect:      { x: 400, y: 110  },
-  hubspot_lead:       { x: 400, y: 220  },
-  lead_qualification: { x: 160, y: 220  },
-  inspection:         { x: 160, y: 350  },
-  insurance_claim:    { x: 400, y: 460  },
-  cpq:                { x: 160, y: 570  },
-  proposal:           { x: 160, y: 680  },
-  production:         { x: 160, y: 790  },
-  complete:           { x: 160, y: 900  },
-  invoicing:          { x: 160, y: 1010 },
-};
-
 interface Props {
   answers: Record<string, any>;
   onNodeClick?: (label: string, description: string, notifications?: DerivedNotification[]) => void;
+  className?: string;
 }
 
-export function CompassFlow({ answers, onNodeClick }: Props) {
+export function CompassFlow({ answers, onNodeClick, className }: Props) {
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
 
   const variant = computeFlowVariant(answers);
@@ -57,7 +44,7 @@ export function CompassFlow({ answers, onNodeClick }: Props) {
     variantNodes.forEach((n, i) => {
       setTimeout(() => {
         setRevealedIds((prev) => new Set(Array.from(prev).concat(n.id)));
-      }, i * 150);
+      }, i * 100);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answers]);
@@ -67,7 +54,7 @@ export function CompassFlow({ answers, onNodeClick }: Props) {
     .map((n) => ({
       id: n.id,
       type: 'compass' as const,
-      position: NODE_POS[n.id] ?? { x: 160, y: 0 },
+      position: n.position,
       data: {
         label: n.label,
         description: n.description,
@@ -101,21 +88,41 @@ export function CompassFlow({ answers, onNodeClick }: Props) {
   );
 
   return (
-    <div className="w-full h-[380px] sm:h-[520px] rounded-2xl overflow-hidden border border-[#E5E2DC] bg-white">
+    <div className={className ?? 'w-full h-[520px] rounded-2xl overflow-hidden border border-[#E5E2DC] bg-white'}>
       <ReactFlow
         nodes={rfNodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}
         onNodeClick={handleNodeClick}
         fitView
-        fitViewOptions={{ padding: 0.3 }}
-        nodesDraggable={false}
+        fitViewOptions={{ padding: 0.2 }}
+        minZoom={0.2}
+        maxZoom={1.5}
+        nodesDraggable
         nodesConnectable={false}
         elementsSelectable
+        panOnDrag
+        panOnScroll={false}
+        zoomOnScroll
         proOptions={{ hideAttribution: true }}
       >
         <Background color="#E5E2DC" gap={20} size={1} />
         <Controls showInteractive={false} className="!border-[#E5E2DC] !shadow-none" />
+        <MiniMap
+          pannable
+          zoomable
+          nodeStrokeWidth={2}
+          nodeColor={(node) => {
+            const t = (node.data as { nodeType?: string })?.nodeType;
+            if (t === 'start' || t === 'end') return '#1A1A1A';
+            if (t === 'job') return '#BFDBFE';
+            if (t === 'external') return '#BBF7D0';
+            if (t === 'integration') return '#FED7AA';
+            return '#E9D5FF';
+          }}
+          maskColor="rgba(250, 249, 247, 0.6)"
+          className="!bg-white !border !border-[#E5E2DC] !rounded-xl"
+        />
       </ReactFlow>
     </div>
   );

@@ -1,3 +1,21 @@
+import { QUESTIONS } from '../questions';
+
+// ── Lookup: questionId → (optionValue → label) ─────────────────────────────
+const OPTION_LABELS: Record<string, Record<string, string>> = (() => {
+  const out: Record<string, Record<string, string>> = {};
+  for (const q of QUESTIONS) {
+    if (q.options) {
+      out[q.id] = {};
+      for (const o of q.options) out[q.id][o.value] = o.label;
+    }
+  }
+  return out;
+})();
+
+function labelFor(questionId: string, value: string): string {
+  return OPTION_LABELS[questionId]?.[value] ?? value;
+}
+
 export interface FlowNode {
   id: string;
   label: string;
@@ -5,176 +23,272 @@ export interface FlowNode {
   description: string;
   isOptional?: boolean;
   isExternal?: boolean;
-  color?: string;
+  position: { x: number; y: number };
+}
+
+export interface FlowEdge {
+  from: string;
+  to: string;
+  label?: string;
 }
 
 export interface FlowVariantConfig {
   nodes: FlowNode[];
-  edges: { from: string; to: string; label?: string }[];
-  skippedNodes?: string[];
+  edges: FlowEdge[];
 }
 
-export const ALL_FLOW_NODES: Record<string, FlowNode> = {
-  website_lead: {
-    id: 'website_lead',
-    label: 'Website Booking',
-    type: 'integration',
-    description: 'Homeowner fills out your booking widget. Lead created in Zuper automatically.',
-  },
-  lead_in: {
-    id: 'lead_in',
-    label: 'New Lead',
-    type: 'start',
-    description: 'A potential customer enters your pipeline.',
-  },
-  hubspot_lead: {
-    id: 'hubspot_lead',
-    label: 'HubSpot CRM',
-    type: 'external',
-    isExternal: true,
-    description: 'Lead is managed in HubSpot. When qualified, it syncs to Zuper.',
-  },
-  lead_qualification: {
-    id: 'lead_qualification',
-    label: 'Lead Qualification Job',
-    type: 'job',
-    description: 'A Zuper job assigned to your sales rep. They call the lead, confirm interest, and mark it qualified.',
-  },
-  inspection: {
-    id: 'inspection',
-    label: 'Inspection Job',
-    type: 'job',
-    description: 'Field tech visits the property, measures the roof, photos everything via CompanyCam or Hover.',
-  },
-  insurance_claim: {
-    id: 'insurance_claim',
-    label: 'Insurance Claim',
-    type: 'action',
-    description: 'Adjuster visit scheduled. Supplement process tracked. Approval logged before production.',
-    isOptional: true,
-  },
-  cpq: {
-    id: 'cpq',
-    label: 'CPQ / Estimating',
-    type: 'action',
-    description: "Measurements from inspection feed into Zuper's CPQ. Good / Better / Best proposals built per brand.",
-  },
-  proposal: {
-    id: 'proposal',
-    label: 'Proposal Sent',
-    type: 'action',
-    description: 'Customer receives their proposal. They can approve it digitally.',
-  },
-  production: {
-    id: 'production',
-    label: 'Production Jobs',
-    type: 'job',
-    description: 'Once approved, production jobs are created — tear off, install, cleanup — each with their own checklist.',
-  },
-  complete: {
-    id: 'complete',
-    label: 'Job Complete',
-    type: 'job',
-    description: 'Work is finished on site. Photos uploaded, sign-off captured, cleanup confirmed.',
-  },
-  invoicing: {
-    id: 'invoicing',
-    label: 'Invoicing & Closeout',
-    type: 'end',
-    description: 'Invoice issued, payment collected, closeout docs sent (warranty, photos, review request).',
-  },
-  zuper_connect: {
-    id: 'zuper_connect',
-    label: 'Zuper Connect',
-    type: 'integration',
-    description: 'Inbound calls and texts from customers are logged here and linked to jobs.',
-    isOptional: true,
-  },
-};
+// ── Layout constants ───────────────────────────────────────────────────────
+const SPINE_X = 360;
+const ROW_H = 140;
+const SIDE_OFFSET = 240;
 
+const Y_SOURCES           = 0;
+const Y_LEAD_OR_CUSTOMER  = Y_SOURCES + ROW_H;
+const Y_WEBSITE           = Y_LEAD_OR_CUSTOMER;        // parallel
+const Y_ZUPER_CONNECT     = Y_LEAD_OR_CUSTOMER;        // parallel (other side)
+const Y_QUALIFICATION     = Y_LEAD_OR_CUSTOMER + ROW_H;
+const Y_INSPECTION        = Y_QUALIFICATION + ROW_H;
+const Y_INSURANCE         = Y_INSPECTION + ROW_H / 2;  // mid-row
+const Y_MEASUREMENT       = Y_INSPECTION;              // same row, off to the side
+const Y_CPQ               = Y_INSPECTION + ROW_H;
+const Y_PROPOSAL          = Y_CPQ + ROW_H;
+const Y_MATERIAL_ORDERING = Y_PROPOSAL + ROW_H;
+const Y_SUPPLIERS         = Y_MATERIAL_ORDERING;       // same row, off to the side
+const Y_PRODUCTION        = Y_MATERIAL_ORDERING + ROW_H;
+const Y_INVOICING         = Y_PRODUCTION + ROW_H;
+
+// ── Variant computation ────────────────────────────────────────────────────
 export function computeFlowVariant(answers: Record<string, any>): FlowVariantConfig {
   const nodes: FlowNode[] = [];
-  const edges: { from: string; to: string; label?: string }[] = [];
+  const edges: FlowEdge[] = [];
 
   const hasQualification = answers['has_lead_qualification'] === 'yes';
-  const qualPlatform = answers['qualification_platform'];
+  const qualPlatform     = answers['qualification_platform'];
   const jobTypes: string[] = Array.isArray(answers['job_types']) ? answers['job_types'] : [];
-  const doesInsurance = jobTypes.includes('insurance_storm');
-  const hasRetail = jobTypes.some((t) => t !== 'insurance_storm');
-  const usesConnect = answers['uses_zuper_connect'] === 'yes';
-  const hasWidget = answers['wants_booking_widget'] === 'yes';
-  const paymentTiming = answers['payment_timing'];
+  const doesInsurance    = jobTypes.includes('insurance_storm');
+  const hasRetail        = jobTypes.some((t) => t !== 'insurance_storm');
+  const usesConnect      = answers['uses_zuper_connect'] === 'yes';
+  const hasWidget        = answers['wants_booking_widget'] === 'yes';
 
-  // ── Entry point ──
-  if (hasWidget) {
-    nodes.push(ALL_FLOW_NODES.website_lead);
-    nodes.push(ALL_FLOW_NODES.lead_in);
-    edges.push({ from: 'website_lead', to: 'lead_in' });
-  } else {
-    nodes.push(ALL_FLOW_NODES.lead_in);
+  const paymentTiming: string[] = Array.isArray(answers['payment_timing'])
+    ? answers['payment_timing']
+    : (answers['payment_timing'] ? [answers['payment_timing']] : []);
+
+  const leadSources: string[] = Array.isArray(answers['lead_sources'])
+    ? answers['lead_sources'].filter((s: string) => s !== 'other')
+    : [];
+
+  const measurementProviders: string[] = Array.isArray(answers['measurement_providers'])
+    ? answers['measurement_providers'].filter((s: string) => s !== 'other' && s !== 'manual')
+    : [];
+
+  const suppliers: string[] = Array.isArray(answers['suppliers'])
+    ? answers['suppliers'].filter((s: string) => s !== 'other')
+    : [];
+
+  // ── Lead source nodes (fan into Lead/Customer Created) ───────────────────
+  const sourcesToRender = leadSources.length > 0 ? leadSources : [];
+  if (sourcesToRender.length > 0) {
+    const count = sourcesToRender.length;
+    const stride = 180;
+    const startX = SPINE_X - ((count - 1) * stride) / 2;
+    sourcesToRender.forEach((src, i) => {
+      const id = `source_${src}`;
+      const lbl = labelFor('lead_sources', src);
+      nodes.push({
+        id,
+        label: lbl,
+        type: 'integration',
+        description: `Inbound lead from ${lbl}.`,
+        position: { x: startX + i * stride, y: Y_SOURCES },
+      });
+      edges.push({ from: id, to: 'lead_or_customer' });
+    });
   }
 
-  // ── Qualification ──
+  // ── Lead or Customer Created (label depends on whether LQ exists) ────────
+  nodes.push({
+    id: 'lead_or_customer',
+    label: hasQualification ? 'Lead created' : 'Customer created',
+    type: 'start',
+    description: hasQualification
+      ? 'A new lead lands in Zuper and gets routed to qualification.'
+      : 'A customer record + inspection job is created in Zuper directly.',
+    position: { x: SPINE_X, y: Y_LEAD_OR_CUSTOMER },
+  });
+
+  // ── Website booking widget (right of spine, parallel entry) ──────────────
+  if (hasWidget) {
+    nodes.push({
+      id: 'website_lead',
+      label: 'Website booking',
+      type: 'integration',
+      description: 'Homeowner submits the booking form on your website.',
+      position: { x: SPINE_X + SIDE_OFFSET, y: Y_WEBSITE },
+    });
+    edges.push({ from: 'website_lead', to: 'lead_or_customer', label: 'Form submit' });
+  }
+
+  // ── Zuper Connect (left of spine, parallel) ──────────────────────────────
+  if (usesConnect) {
+    nodes.push({
+      id: 'zuper_connect',
+      label: 'Zuper Connect',
+      type: 'integration',
+      description: 'Inbound calls and texts are logged here and linked to jobs.',
+      isOptional: true,
+      position: { x: SPINE_X - SIDE_OFFSET, y: Y_ZUPER_CONNECT },
+    });
+    edges.push({ from: 'lead_or_customer', to: 'zuper_connect', label: 'Calls & texts' });
+  }
+
+  // ── Qualification path ───────────────────────────────────────────────────
   if (hasQualification && qualPlatform === 'hubspot') {
-    nodes.push(ALL_FLOW_NODES.hubspot_lead);
-    edges.push({ from: 'lead_in', to: 'hubspot_lead' });
-    nodes.push(ALL_FLOW_NODES.inspection);
+    nodes.push({
+      id: 'hubspot_lead',
+      label: 'HubSpot CRM',
+      type: 'external',
+      isExternal: true,
+      description: 'Lead is managed in HubSpot. When qualified, it syncs to Zuper.',
+      position: { x: SPINE_X, y: Y_QUALIFICATION },
+    });
+    edges.push({ from: 'lead_or_customer', to: 'hubspot_lead' });
     edges.push({ from: 'hubspot_lead', to: 'inspection', label: 'Qualified in HubSpot' });
   } else if (hasQualification) {
-    nodes.push(ALL_FLOW_NODES.lead_qualification);
-    edges.push({ from: 'lead_in', to: 'lead_qualification' });
-    nodes.push(ALL_FLOW_NODES.inspection);
+    nodes.push({
+      id: 'lead_qualification',
+      label: 'Lead Qualification job',
+      type: 'job',
+      description: 'A Zuper job for your sales rep — call the lead, confirm interest, mark qualified.',
+      position: { x: SPINE_X, y: Y_QUALIFICATION },
+    });
+    edges.push({ from: 'lead_or_customer', to: 'lead_qualification' });
     edges.push({ from: 'lead_qualification', to: 'inspection', label: 'Qualified' });
   } else {
-    nodes.push(ALL_FLOW_NODES.inspection);
-    edges.push({ from: 'lead_in', to: 'inspection' });
+    edges.push({ from: 'lead_or_customer', to: 'inspection' });
   }
 
-  // ── Insurance branch ──
+  // ── Inspection ───────────────────────────────────────────────────────────
+  nodes.push({
+    id: 'inspection',
+    label: 'Inspection job',
+    type: 'job',
+    description: 'Field tech visits the property, measures the roof, captures photos.',
+    position: { x: SPINE_X, y: Y_INSPECTION },
+  });
+
+  // ── Measurement provider nodes (feed measurements into CPQ) ──────────────
+  if (measurementProviders.length > 0) {
+    const stride = 170;
+    measurementProviders.forEach((p, i) => {
+      const id = `provider_${p}`;
+      const lbl = labelFor('measurement_providers', p);
+      nodes.push({
+        id,
+        label: lbl,
+        type: 'external',
+        isExternal: true,
+        description: `Roof measurements pulled from ${lbl} into the job for CPQ.`,
+        position: { x: SPINE_X + SIDE_OFFSET + i * stride, y: Y_MEASUREMENT },
+      });
+      edges.push({ from: id, to: 'cpq', label: 'Measurements' });
+    });
+  }
+
+  // ── Insurance branch ─────────────────────────────────────────────────────
   if (doesInsurance) {
-    nodes.push(ALL_FLOW_NODES.insurance_claim);
+    nodes.push({
+      id: 'insurance_claim',
+      label: 'Insurance claim',
+      type: 'action',
+      isOptional: true,
+      description: 'Adjuster visit scheduled. Supplement process tracked. Approval logged before production.',
+      position: { x: SPINE_X - SIDE_OFFSET, y: Y_INSURANCE },
+    });
     edges.push({ from: 'inspection', to: 'insurance_claim', label: 'Insurance job' });
-    nodes.push(ALL_FLOW_NODES.cpq);
     edges.push({ from: 'insurance_claim', to: 'cpq', label: 'Approved' });
-    if (hasRetail) {
-      edges.push({ from: 'inspection', to: 'cpq', label: 'Retail job' });
-    }
+    if (hasRetail) edges.push({ from: 'inspection', to: 'cpq', label: 'Retail' });
   } else {
-    nodes.push(ALL_FLOW_NODES.cpq);
     edges.push({ from: 'inspection', to: 'cpq' });
   }
 
-  // ── Proposal ──
-  nodes.push(ALL_FLOW_NODES.proposal);
+  // ── CPQ ──────────────────────────────────────────────────────────────────
+  nodes.push({
+    id: 'cpq',
+    label: 'CPQ / Estimating',
+    type: 'action',
+    description: 'Measurements feed into Zuper CPQ. Good / Better / Best proposals built per brand.',
+    position: { x: SPINE_X, y: Y_CPQ },
+  });
+
+  // ── Proposal ─────────────────────────────────────────────────────────────
+  nodes.push({
+    id: 'proposal',
+    label: 'Proposal sent',
+    type: 'action',
+    description: 'Customer receives their proposal. Approval captured digitally.',
+    position: { x: SPINE_X, y: Y_PROPOSAL },
+  });
   edges.push({ from: 'cpq', to: 'proposal' });
 
-  // ── Production ──
-  nodes.push(ALL_FLOW_NODES.production);
-  edges.push({ from: 'proposal', to: 'production', label: 'Customer approved' });
+  // ── Material ordering (pre-production milestone) ─────────────────────────
+  nodes.push({
+    id: 'material_ordering',
+    label: 'Material ordering',
+    type: 'action',
+    description: 'Pre-production: materials list reviewed, POs raised to suppliers, delivery scheduled.',
+    position: { x: SPINE_X, y: Y_MATERIAL_ORDERING },
+  });
+  edges.push({ from: 'proposal', to: 'material_ordering', label: 'Customer approved' });
 
-  // ── Job Complete (work done in field) ──
-  nodes.push(ALL_FLOW_NODES.complete);
-  edges.push({ from: 'production', to: 'complete' });
-
-  // ── Invoicing & Closeout (terminal node) ──
-  const invoicingNode: FlowNode = { ...ALL_FLOW_NODES.invoicing };
-  if (paymentTiming === 'day_of_install') {
-    invoicingNode.description = 'Payment collected on install day. Invoice marked paid immediately. Closeout docs follow.';
-  } else if (paymentTiming === 'few_days_after') {
-    invoicingNode.description = 'Invoice issued on completion, payment collected within a few days. Closeout docs sent on payment.';
-  } else if (paymentTiming === 'invoice_after') {
-    invoicingNode.description = 'Invoice sent after job is done — customer pays on receipt. Closeout docs follow.';
-  } else if (paymentTiming === 'varies') {
-    invoicingNode.description = 'Billing rules vary by job type — set up per category. Closeout docs sent on payment.';
+  // ── Suppliers (POs go OUT to them) ───────────────────────────────────────
+  if (suppliers.length > 0) {
+    const stride = 170;
+    suppliers.forEach((s, i) => {
+      const id = `supplier_${s}`;
+      const lbl = labelFor('suppliers', s);
+      nodes.push({
+        id,
+        label: lbl,
+        type: 'external',
+        isExternal: true,
+        description: `Purchase order sent to ${lbl}.`,
+        position: { x: SPINE_X + SIDE_OFFSET + i * stride, y: Y_SUPPLIERS },
+      });
+      edges.push({ from: 'material_ordering', to: id, label: 'PO' });
+    });
   }
-  nodes.push(invoicingNode);
-  edges.push({ from: 'complete', to: 'invoicing' });
 
-  // ── Zuper Connect (parallel) ──
-  if (usesConnect) {
-    nodes.push(ALL_FLOW_NODES.zuper_connect);
-    edges.push({ from: 'lead_in', to: 'zuper_connect', label: 'Calls & texts' });
+  // ── Production ───────────────────────────────────────────────────────────
+  nodes.push({
+    id: 'production',
+    label: 'Production',
+    type: 'job',
+    description: 'Tear off, install, cleanup — each with its own checklist and photos.',
+    position: { x: SPINE_X, y: Y_PRODUCTION },
+  });
+  edges.push({ from: 'material_ordering', to: 'production' });
+
+  // ── Invoicing & Closeout (terminal) ──────────────────────────────────────
+  let invoicingDesc = 'Invoice issued, payment collected, closeout docs sent (warranty, photos, review request).';
+  if (paymentTiming.length === 1) {
+    const t = paymentTiming[0];
+    if (t === 'day_of_install') invoicingDesc = 'Payment collected on install day. Invoice marked paid immediately. Closeout docs follow.';
+    else if (t === 'few_days_after') invoicingDesc = 'Invoice issued on completion, payment collected within a few days.';
+    else if (t === 'invoice_after') invoicingDesc = 'Invoice sent after the job is done — customer pays on receipt.';
+    else if (t === 'varies') invoicingDesc = 'Billing rules vary by job type — configured per category.';
+  } else if (paymentTiming.length > 1) {
+    const lbls = paymentTiming.map((t) => labelFor('payment_timing', t)).join(' · ');
+    invoicingDesc = `Multiple billing rules: ${lbls}.`;
   }
+  nodes.push({
+    id: 'invoicing',
+    label: 'Invoicing & Closeout',
+    type: 'end',
+    description: invoicingDesc,
+    position: { x: SPINE_X, y: Y_INVOICING },
+  });
+  edges.push({ from: 'production', to: 'invoicing' });
 
   return { nodes, edges };
 }

@@ -8,7 +8,7 @@ import { CHANNEL_LABEL, AUDIENCE_LABEL, type DerivedNotification } from '@/lib/n
 const CompassFlow = dynamic(
   () => import('../flowchart/CompassFlow').then((m) => ({ default: m.CompassFlow })),
   { ssr: false, loading: () => (
-    <div className="w-full h-[520px] rounded-2xl border border-[#E5E2DC] bg-white flex items-center justify-center">
+    <div className="w-full h-[calc(100vh-280px)] rounded-2xl border border-[#E5E2DC] bg-white flex items-center justify-center">
       <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
     </div>
   )}
@@ -30,29 +30,55 @@ export function FlowStep({ answers, customerName, onNext }: Props) {
   const [activeNode, setActiveNode] = useState<ActiveNode | null>(null);
 
   return (
-    <div className="max-w-[760px] mx-auto px-6 py-12 space-y-6">
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-        <p className="text-[11px] font-bold uppercase tracking-widest text-orange-500 mb-2">
-          Your flow
-        </p>
-        <h1 className="text-[32px] font-extrabold text-[#1A1A1A] leading-tight">
-          How your jobs will move in Zuper
-        </h1>
-        <p className="text-sm text-gray-500 leading-relaxed mt-2">
-          Based on what you told us, {customerName}. Click any node to learn more.
-        </p>
+    <div className="max-w-[1400px] mx-auto px-6 pt-8 pb-24 space-y-5">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3"
+      >
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-orange-500 mb-1.5">
+            Your flow
+          </p>
+          <h1 className="text-[26px] sm:text-[30px] font-extrabold text-[#1A1A1A] leading-tight">
+            How your jobs will move in Zuper
+          </h1>
+          <p className="text-sm text-gray-500 leading-relaxed mt-1.5">
+            Based on what you told us{customerName ? `, ${customerName}` : ''}. Click any node to learn more — drag to rearrange, scroll to zoom.
+          </p>
+        </div>
+        {/* Legend */}
+        <div className="flex flex-wrap gap-x-3 gap-y-1.5 shrink-0">
+          {[
+            { color: '#EFF6FF', border: '#BFDBFE', label: 'Job' },
+            { color: '#FFF7ED', border: '#FED7AA', label: 'Integration' },
+            { color: '#F0FDF4', border: '#BBF7D0', label: 'External', dashed: true },
+            { color: '#FAF5FF', border: '#E9D5FF', label: 'Action' },
+            { color: '#1A1A1A', border: '#1A1A1A', label: 'Start / end' },
+          ].map((item) => (
+            <div key={item.label} className="flex items-center gap-1.5">
+              <div
+                className={`w-3.5 h-3.5 rounded ${item.dashed ? 'border-2 border-dashed' : 'border'}`}
+                style={{ background: item.color, borderColor: item.border }}
+              />
+              <span className="text-[11px] text-gray-500">{item.label}</span>
+            </div>
+          ))}
+        </div>
       </motion.div>
 
       <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
+        initial={{ opacity: 0, scale: 0.99 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.15, duration: 0.35 }}
+        transition={{ delay: 0.1, duration: 0.3 }}
       >
         <CompassFlow
           answers={answers}
           onNodeClick={(label, description, notifications) =>
             setActiveNode({ label, description, notifications: notifications ?? [] })
           }
+          className="w-full h-[calc(100vh-280px)] min-h-[520px] rounded-2xl overflow-hidden border border-[#E5E2DC] bg-white"
         />
       </motion.div>
 
@@ -125,30 +151,17 @@ export function FlowStep({ answers, customerName, onNext }: Props) {
         )}
       </AnimatePresence>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-3">
-        {[
-          { color: '#EFF6FF', border: '#BFDBFE', label: 'Job in Zuper' },
-          { color: '#F0FDF4', border: '#BBF7D0', label: 'External system', dashed: true },
-          { color: '#FFF7ED', border: '#FED7AA', label: 'Integration' },
-          { color: '#FAF5FF', border: '#E9D5FF', label: 'Action / step' },
-        ].map((item) => (
-          <div key={item.label} className="flex items-center gap-1.5">
-            <div
-              className={`w-4 h-4 rounded ${item.dashed ? 'border-2 border-dashed' : 'border'}`}
-              style={{ background: item.color, borderColor: item.border }}
-            />
-            <span className="text-xs text-gray-400">{item.label}</span>
-          </div>
-        ))}
+      {/* Sticky bottom CTA */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-[#FAF9F7]/95 backdrop-blur border-t border-[#E5E2DC] py-3 px-6">
+        <div className="max-w-[1400px] mx-auto flex justify-end">
+          <button
+            onClick={onNext}
+            className="h-11 px-6 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-full transition-colors text-sm"
+          >
+            Looks good — show me my account →
+          </button>
+        </div>
       </div>
-
-      <button
-        onClick={onNext}
-        className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-full transition-colors text-base"
-      >
-        Looks good — show me my account →
-      </button>
     </div>
   );
 }

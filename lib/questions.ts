@@ -250,17 +250,6 @@ export const QUESTIONS: Question[] = [
   },
 
   {
-    id: 'widget_website_url',
-    section: 'website',
-    text: "What's your website URL?",
-    subtext:
-      "We'll embed the booking form here and pull your brand colours, Terms of Service, and Privacy Policy from the site. Include the full URL, e.g. https://www.summitroofing.com",
-    type: 'single_line',
-    condition: { questionId: 'wants_booking_widget', answer: 'yes' },
-    required: true,
-  },
-
-  {
     id: 'widget_services',
     section: 'website',
     text: 'What services do you want listed in the online booking form?',
@@ -442,48 +431,14 @@ export const QUESTIONS: Question[] = [
     ],
   },
 
-  {
-    id: 'sends_pre_job_docs',
-    section: 'crew_ops',
-    text: 'Do you currently send homeowners any documentation before the job starts?',
-    type: 'single_select',
-    options: [
-      { value: 'yes', label: 'Yes' },
-      { value: 'no',  label: 'No' },
-    ],
-    required: true,
-  },
-
-  {
-    id: 'pre_job_docs_what',
-    section: 'crew_ops',
-    text: 'What do you typically send them?',
-    subtext: 'E.g. contract, materials list, what to expect on install day, parking instructions.',
-    type: 'multi_line',
-    condition: { questionId: 'sends_pre_job_docs', answer: 'yes' },
-  },
-
-  {
-    id: 'pre_install_reminders',
-    section: 'crew_ops',
-    text: 'Do you currently send reminders before install day?',
-    type: 'single_select',
-    options: [
-      { value: 'both',            label: 'Yes — both homeowners and crews' },
-      { value: 'homeowners_only', label: 'Yes — homeowners only' },
-      { value: 'crews_only',      label: 'Yes — crews only' },
-      { value: 'no',              label: 'No' },
-    ],
-    required: true,
-  },
-
   // ─── PAYMENTS & INVOICING ────────────────────────────────────────────────────
 
   {
     id: 'payment_timing',
     section: 'payments',
     text: 'When do you typically collect payment from customers?',
-    type: 'single_select',
+    subtext: 'Pick all that apply.',
+    type: 'multi_select',
     options: [
       { value: 'day_of_install', label: 'Day of install' },
       { value: 'few_days_after', label: 'Within a few days of completion' },
@@ -536,91 +491,13 @@ export const QUESTIONS: Question[] = [
     required: true,
   },
 
-  {
-    id: 'uses_digital_payment_tools',
-    section: 'payments',
-    text: 'Do you use any digital payment tools or portals today?',
-    type: 'single_select',
-    options: [
-      { value: 'yes', label: 'Yes' },
-      { value: 'no',  label: 'No' },
-    ],
-    required: true,
-  },
-
-  {
-    id: 'digital_payment_tools_which',
-    section: 'payments',
-    text: 'Which payment tools do you use?',
-    subtext: 'E.g. Stripe, QuickBooks Payments, GoodLeap, Sunlight, etc.',
-    type: 'single_line',
-    condition: { questionId: 'uses_digital_payment_tools', answer: 'yes' },
-  },
-
-  {
-    id: 'invoice_owner',
-    section: 'payments',
-    text: 'Who on your team handles creating and managing invoices?',
-    type: 'single_select',
-    options: [
-      { value: 'owner',          label: 'Owner' },
-      { value: 'office_manager', label: 'Office manager / Admin' },
-      { value: 'bookkeeper',     label: 'Bookkeeper' },
-      { value: 'project_manager',label: 'Project manager' },
-      { value: 'sales_rep',      label: 'Sales rep' },
-    ],
-    required: true,
-  },
-
-  {
-    id: 'payment_notification_recipients',
-    section: 'payments',
-    text: 'When a payment comes in, who needs to know about it?',
-    subtext: 'Pick everyone who should get a notification.',
-    type: 'multi_select',
-    options: [
-      { value: 'owner',          label: 'Owner' },
-      { value: 'sales_rep',      label: 'Sales rep' },
-      { value: 'office_manager', label: 'Office manager' },
-      { value: 'project_manager',label: 'Project manager' },
-      { value: 'bookkeeper',     label: 'Bookkeeper' },
-    ],
-    required: true,
-  },
-
-  {
-    id: 'payment_failure_recipients',
-    section: 'payments',
-    text: 'If a payment fails or bounces, who needs to be alerted right away?',
-    type: 'multi_select',
-    options: [
-      { value: 'owner',          label: 'Owner' },
-      { value: 'sales_rep',      label: 'Sales rep' },
-      { value: 'office_manager', label: 'Office manager' },
-      { value: 'project_manager',label: 'Project manager' },
-      { value: 'bookkeeper',     label: 'Bookkeeper' },
-    ],
-    required: true,
-  },
-
   // ─── CLOSEOUT ────────────────────────────────────────────────────────────────
-
-  {
-    id: 'sends_post_job_docs',
-    section: 'closeout',
-    text: 'Do you currently send customers anything after a job is complete?',
-    type: 'single_select',
-    options: [
-      { value: 'yes', label: 'Yes' },
-      { value: 'no',  label: 'No' },
-    ],
-    required: true,
-  },
 
   {
     id: 'post_job_docs_what',
     section: 'closeout',
-    text: 'What do you include?',
+    text: 'What do you send to customers after a job is complete?',
+    subtext: 'Pick all that apply. Leave blank if you don\'t send anything today.',
     type: 'multi_select',
     options: [
       { value: 'certificate',    label: 'Certificate of completion' },
@@ -630,7 +507,6 @@ export const QUESTIONS: Question[] = [
       { value: 'review_request', label: 'Review request' },
     ],
     otherOption: true,
-    condition: { questionId: 'sends_post_job_docs', answer: 'yes' },
   },
 
   // ─── OPEN FIELD ──────────────────────────────────────────────────────────────

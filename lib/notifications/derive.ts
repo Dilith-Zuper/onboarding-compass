@@ -13,19 +13,6 @@ export interface DerivedNotification {
   source: 'answers' | 'default';
 }
 
-const RECIPIENT_LABEL: Record<string, string> = {
-  owner:           'Owner',
-  sales_rep:       'Sales rep',
-  office_manager:  'Office manager',
-  project_manager: 'Project manager',
-  bookkeeper:      'Bookkeeper',
-};
-
-function joinRecipients(values: string[] | undefined): string {
-  if (!values || values.length === 0) return 'Configured user';
-  return values.map((v) => RECIPIENT_LABEL[v] || v).join(', ');
-}
-
 const POST_JOB_DOC_DETAILS: Record<string, { title: string; channel: NotifChannel; description: string }> = {
   certificate:    { title: 'Certificate of completion', channel: 'email', description: 'Formal completion certificate emailed to the homeowner.' },
   warranty:       { title: 'Warranty documents',        channel: 'email', description: 'Manufacturer and workmanship warranty docs.' },
@@ -66,100 +53,20 @@ export function deriveNotificationsFromAnswers(answers: Record<string, any>): De
     });
   }
 
-  // ── Pre-install reminders ─────────────────────────────────────────────────
-  const reminders = answers['pre_install_reminders'];
-  if (reminders === 'both' || reminders === 'homeowners_only') {
-    out.push({
-      id: 'pre_install_reminder_homeowner',
-      nodeId: 'production',
-      title: 'Pre-install reminder to homeowner',
-      trigger: '24 hours before the scheduled install',
-      audience: 'homeowner',
-      channel: 'mixed',
-      description: 'Reminder with date, time, and crew arrival window.',
-      source: 'answers',
-    });
-  }
-  if (reminders === 'both' || reminders === 'crews_only') {
-    out.push({
-      id: 'pre_install_reminder_crew',
-      nodeId: 'production',
-      title: 'Pre-install reminder to crew',
-      trigger: 'Day before install',
-      audience: 'crew',
-      channel: 'mixed',
-      description: 'Sends job details, address, and homeowner contact to the assigned crew.',
-      source: 'answers',
-    });
-  }
-
-  // ── Pre-job documents ─────────────────────────────────────────────────────
-  if (answers['sends_pre_job_docs'] === 'yes') {
-    const what = answers['pre_job_docs_what'];
-    out.push({
-      id: 'pre_job_docs',
-      nodeId: 'production',
-      title: 'Pre-job documents to homeowner',
-      trigger: 'Once the install is scheduled',
-      audience: 'homeowner',
-      channel: 'email',
-      description: what ? `Includes: ${String(what).slice(0, 160)}` : 'Documents sent to homeowner before install.',
-      source: 'answers',
-    });
-  }
-
   // ── Post-job documents (each one becomes its own notification) ────────────
-  if (answers['sends_post_job_docs'] === 'yes') {
-    const items: string[] = Array.isArray(answers['post_job_docs_what']) ? answers['post_job_docs_what'] : [];
-    for (const item of items) {
-      if (item === 'other') continue;
-      const d = POST_JOB_DOC_DETAILS[item];
-      if (!d) continue;
-      out.push({
-        id: `post_job_${item}`,
-        nodeId: 'complete',
-        title: d.title,
-        trigger: 'On job completion',
-        audience: 'homeowner',
-        channel: d.channel,
-        description: d.description,
-        source: 'answers',
-      });
-    }
-  }
-
-  // ── Payment received notification ─────────────────────────────────────────
-  const payRecipients: string[] = Array.isArray(answers['payment_notification_recipients'])
-    ? answers['payment_notification_recipients']
-    : [];
-  if (payRecipients.length > 0) {
+  const postJobItems: string[] = Array.isArray(answers['post_job_docs_what']) ? answers['post_job_docs_what'] : [];
+  for (const item of postJobItems) {
+    if (item === 'other') continue;
+    const d = POST_JOB_DOC_DETAILS[item];
+    if (!d) continue;
     out.push({
-      id: 'payment_received',
+      id: `post_job_${item}`,
       nodeId: 'invoicing',
-      title: 'Payment received',
-      trigger: 'When a payment is recorded against an invoice',
-      audience: 'specific',
-      audienceLabel: joinRecipients(payRecipients),
-      channel: 'in_app',
-      description: 'Internal notification confirming payment was received.',
-      source: 'answers',
-    });
-  }
-
-  // ── Payment failure alert ─────────────────────────────────────────────────
-  const failRecipients: string[] = Array.isArray(answers['payment_failure_recipients'])
-    ? answers['payment_failure_recipients']
-    : [];
-  if (failRecipients.length > 0) {
-    out.push({
-      id: 'payment_failed',
-      nodeId: 'invoicing',
-      title: 'Payment failed alert',
-      trigger: 'When a payment fails, bounces, or is declined',
-      audience: 'specific',
-      audienceLabel: joinRecipients(failRecipients),
-      channel: 'push',
-      description: 'Urgent alert to recover the payment immediately.',
+      title: d.title,
+      trigger: 'On job completion',
+      audience: 'homeowner',
+      channel: d.channel,
+      description: d.description,
       source: 'answers',
     });
   }
