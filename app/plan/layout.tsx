@@ -4,6 +4,7 @@ import { jwtVerify } from 'jose';
 import Link from 'next/link';
 
 import { cleanEnv } from '@/lib/utils';
+import type { AdminRole } from '@/lib/auth';
 
 const secret = new TextEncoder().encode(cleanEnv(process.env.ADMIN_JWT_SECRET));
 
@@ -13,8 +14,10 @@ export default async function PlanLayout({ children }: { children: React.ReactNo
 
   if (!token) redirect('/admin/login?next=/plan');
 
+  let role: AdminRole = 'admin';
   try {
-    await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, secret);
+    role = (payload.role as AdminRole) || 'admin';
   } catch {
     redirect('/admin/login?next=/plan');
   }
@@ -35,12 +38,19 @@ export default async function PlanLayout({ children }: { children: React.ReactNo
               Onboarding Compass
             </span>
           </Link>
-          <Link
-            href="/admin"
-            className="text-xs font-semibold text-gray-400 hover:text-orange-500 transition-colors"
-          >
-            ← Dashboard
-          </Link>
+          <div className="flex items-center gap-3">
+            {role === 'super_admin' && (
+              <span className="hidden sm:inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-200">
+                Super admin
+              </span>
+            )}
+            <Link
+              href="/admin"
+              className="text-xs font-semibold text-gray-400 hover:text-orange-500 transition-colors"
+            >
+              ← Dashboard
+            </Link>
+          </div>
         </div>
       </header>
       <main className="max-w-[1100px] mx-auto px-6 py-12">

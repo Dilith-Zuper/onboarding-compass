@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+- Super-admin role wired into the JWT (`role: 'super_admin' | 'admin'`) and surfaced as a pill badge in the admin and `/plan` headers. Configured via the new `SUPER_ADMIN_EMAILS` env var (comma-separated). No scoping changes — all admins still see all sessions; the role is a hook for future role-gated features.
+
 ## [v0.1.0] - 2026-05-18
 
 ### Added

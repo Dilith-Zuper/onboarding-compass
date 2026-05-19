@@ -3,6 +3,7 @@ import { SignJWT } from 'jose';
 import { createClient } from '@/lib/supabase/server';
 import { Resend } from 'resend';
 import { cleanEnv } from '@/lib/utils';
+import { roleForEmail } from '@/lib/auth';
 
 const secret = new TextEncoder().encode(cleanEnv(process.env.ADMIN_JWT_SECRET));
 const resend = new Resend(cleanEnv(process.env.RESEND_API_KEY));
@@ -160,8 +161,8 @@ export async function POST(req: NextRequest) {
     // Mark used
     await supabase.from('admin_otps').update({ used: true }).eq('id', record.id);
 
-    // Issue JWT with email claim
-    const token = await new SignJWT({ role: 'admin', email })
+    // Issue JWT with email + role claim (super_admin if email is in SUPER_ADMIN_EMAILS)
+    const token = await new SignJWT({ role: roleForEmail(email), email })
       .setProtectedHeader({ alg: 'HS256' })
       .setExpirationTime('24h')
       .sign(secret);

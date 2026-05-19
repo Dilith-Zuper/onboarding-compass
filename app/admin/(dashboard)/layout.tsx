@@ -5,6 +5,7 @@ import Link from 'next/link';
 import SignOutButton from '@/components/admin/SignOutButton';
 
 import { cleanEnv } from '@/lib/utils';
+import type { AdminRole } from '@/lib/auth';
 
 const secret = new TextEncoder().encode(cleanEnv(process.env.ADMIN_JWT_SECRET));
 
@@ -13,10 +14,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const token = cookieStore.get('admin_token')?.value;
 
   let email = '';
+  let role: AdminRole = 'admin';
   if (token) {
     try {
       const { payload } = await jwtVerify(token, secret);
       email = (payload.email as string) || '';
+      role = (payload.role as AdminRole) || 'admin';
     } catch {
       redirect('/admin/login');
     }
@@ -40,7 +43,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               Onboarding Compass
             </span>
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {role === 'super_admin' && (
+              <span className="hidden sm:inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-200">
+                Super admin
+              </span>
+            )}
             {email && (
               <span className="hidden sm:block text-xs text-gray-400 font-medium">{email}</span>
             )}

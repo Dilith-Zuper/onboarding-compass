@@ -154,6 +154,7 @@ compass/
 # Admin
 ADMIN_PASSWORD=changeme                        # Single password for admin panel
 ADMIN_JWT_SECRET=generate-a-random-32-char-string
+SUPER_ADMIN_EMAILS=onboarding@zuper.co         # Comma-separated @zuper.co emails granted super_admin role
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=
