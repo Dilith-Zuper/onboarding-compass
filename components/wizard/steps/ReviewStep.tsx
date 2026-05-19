@@ -1,10 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { toPng } from 'html-to-image';
 import { QUESTIONS, computeWidgetMode } from '@/lib/questions';
 import { CONFIG_MATRIX } from '@/lib/configMatrix';
+
+// CompassFlow is rendered hidden so we can screenshot it for the PDF.
+const CompassFlow = dynamic(
+  () => import('../flowchart/CompassFlow').then((m) => ({ default: m.CompassFlow })),
+  { ssr: false }
+);
 interface Props {
   token: string;
   orgName: string;
@@ -20,6 +28,7 @@ export function ReviewStep({ token, orgName, customerName, saEmail, answers, cha
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const flowChartCaptureRef = useRef<HTMLDivElement | null>(null);
 
   // Build human-readable Q&A list
   const answeredQA = QUESTIONS
@@ -43,14 +52,32 @@ export function ReviewStep({ token, orgName, customerName, saEmail, answers, cha
 
   const activeRequests = CONFIG_MATRIX.filter((m) => changeRequests[m.module]?.trim());
 
+  async function captureFlowChart(): Promise<string | null> {
+    const node = flowChartCaptureRef.current;
+    if (!node) return null;
+    try {
+      // Give React Flow a tick to lay out before screenshotting.
+      await new Promise((r) => setTimeout(r, 250));
+      return await toPng(node, {
+        pixelRatio: 2,
+        backgroundColor: '#FFFFFF',
+        cacheBust: true,
+      });
+    } catch (err) {
+      console.warn('Flow chart capture failed:', err);
+      return null;
+    }
+  }
+
   async function handleSubmit() {
     setLoading(true);
     setError('');
     try {
+      const flowChartImage = await captureFlowChart();
       const res = await fetch(`/api/customer/${token}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerName, answers, changeRequests }),
+        body: JSON.stringify({ customerName, answers, changeRequests, flowChartImage }),
       });
       if (!res.ok) {
         const d = await res.json();
@@ -67,6 +94,23 @@ export function ReviewStep({ token, orgName, customerName, saEmail, answers, cha
 
   return (
     <div className="max-w-[760px] mx-auto px-6 py-12 space-y-8">
+      {/* Off-screen render for PDF screenshot — not visible to user */}
+      <div
+        aria-hidden
+        style={{
+          position: 'fixed',
+          top: -10000,
+          left: -10000,
+          width: 1024,
+          height: 1300,
+          pointerEvents: 'none',
+        }}
+      >
+        <div ref={flowChartCaptureRef} style={{ width: 1024, height: 1300, background: '#FFFFFF' }}>
+          <CompassFlow answers={answers} className="w-full h-full bg-white" />
+        </div>
+      </div>
+
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <p className="text-[11px] font-bold uppercase tracking-widest text-orange-500 mb-2">
           Final step

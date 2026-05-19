@@ -21,7 +21,6 @@ export interface Snapshot {
   checklists: any;
   notifications: any;
   workflows: any;
-  workflow_explanations: Record<string, { headline: string; description: string; saves: string[] }> | null;
   created_at: string;
 }
 

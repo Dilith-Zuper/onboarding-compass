@@ -18,6 +18,7 @@ interface Props {
   answers: Record<string, any>;
   changeRequests: Record<string, string>;
   saEmail: string;
+  isPreview: boolean;
   onChangeRequest: (module: string, text: string) => void;
   onSnapshotReady: (snapshot: any) => void;
   onNext: () => void;
@@ -34,7 +35,7 @@ const TAB_LABELS: Record<string, string> = {
   cpq:           'Proposals',
 };
 
-export function SnapshotStep({ token, snapshot, answers, changeRequests, saEmail, onChangeRequest, onSnapshotReady, onNext }: Props) {
+export function SnapshotStep({ token, snapshot, answers, changeRequests, saEmail, isPreview, onChangeRequest, onSnapshotReady, onNext }: Props) {
   const [activeTab, setActiveTab] = useState('categories');
 
   if (!snapshot) {
@@ -45,15 +46,14 @@ export function SnapshotStep({ token, snapshot, answers, changeRequests, saEmail
   const checklists: ZuperChecklist[]      = snapshot.checklists    ?? [];
   const notifications: ZuperNotification[]= snapshot.notifications ?? [];
   const workflows: ZuperWorkflowSummary[] = snapshot.workflows     ?? [];
-  const explanations                       = snapshot.workflow_explanations ?? {};
   const selectedBrands: string[]           = Array.isArray(answers['brands']) ? answers['brands'] : [];
 
   const counts: Record<string, number> = {
     categories:    categories.length,
     statuses:      categories.reduce((sum, c) => sum + c.statuses.length, 0),
     checklists:    checklists.filter((c) => c.items.length > 0).length,
-    notifications: notifications.length,
-    workflows:     workflows.length,
+    notifications: notifications.filter((n) => n.isActive).length,
+    workflows:     workflows.filter((w) => w.isActive).length,
     cpq:           selectedBrands.filter((b) => b !== 'other').length,
   };
 
@@ -117,11 +117,11 @@ export function SnapshotStep({ token, snapshot, answers, changeRequests, saEmail
               changeRequest={changeRequests[activeTab] || ''}
               onChangeRequest={(text) => onChangeRequest(activeTab, text)}
             >
-              {activeTab === 'categories'    && <CategoriesModule    categories={categories} />}
-              {activeTab === 'statuses'      && <StatusesModule      categories={categories} />}
+              {activeTab === 'categories'    && <CategoriesModule    categories={categories} answers={answers} token={token} isPreview={isPreview} />}
+              {activeTab === 'statuses'      && <StatusesModule      categories={categories} answers={answers} token={token} isPreview={isPreview} />}
               {activeTab === 'checklists'    && <ChecklistsModule    checklists={checklists} />}
               {activeTab === 'notifications' && <NotificationsModule notifications={notifications} answers={answers} />}
-              {activeTab === 'workflows'     && <WorkflowsModule     workflows={workflows} explanations={explanations} token={token} />}
+              {activeTab === 'workflows'     && <WorkflowsModule     workflows={workflows} />}
               {activeTab === 'cpq'           && <CPQModule           selectedBrands={selectedBrands} saEmail={saEmail} />}
             </ModuleCard>
           </div>

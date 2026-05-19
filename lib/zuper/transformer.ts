@@ -52,11 +52,6 @@ export interface ZuperWorkflowSummary {
   trigger: string;
   isActive: boolean;
   nodeCount: number;
-  plainEnglish?: {
-    headline: string;
-    description: string;
-    saves: string[];
-  };
 }
 
 export interface ZuperSnapshot {
@@ -141,7 +136,6 @@ export function transformWorkflows(raw: any): ZuperWorkflowSummary[] {
       trigger: w.meta_data?.initial_nodes?.[0]?.data?.action_name || 'Unknown trigger',
       isActive: w.is_active ?? true,
       nodeCount: w.meta_data?.total_nodes || 0,
-      plainEnglish: undefined,
     }));
 }
 

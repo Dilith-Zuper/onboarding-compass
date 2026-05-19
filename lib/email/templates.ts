@@ -63,7 +63,15 @@ export function buildSAEmail({
   <!-- Body -->
   <div style="background:#FFFFFF;border:1px solid #E5E2DC;border-top:none;border-radius:0 0 12px 12px;padding:32px;">
     <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#9CA3AF;">Customer</p>
-    <p style="margin:0 0 24px;font-size:15px;color:#1A1A1A;">${customerName} &lt;${customerEmail}&gt;</p>
+    <p style="margin:0 0 8px;font-size:15px;color:#1A1A1A;">${customerName} &lt;${customerEmail}&gt;</p>
+    <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#9CA3AF;">SA / BA</p>
+    <p style="margin:0 0 24px;font-size:15px;color:#1A1A1A;">${saEmail || 'unassigned'}</p>
+
+    <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:12px 16px;margin-bottom:24px;">
+      <p style="margin:0;font-size:13px;color:#9A3412;">
+        <strong>PDF attached.</strong> Full onboarding report — flow chart, every answer, live account snapshot, renames, and change requests.
+      </p>
+    </div>
 
     <!-- Answers -->
     <p style="margin:0 0 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#9CA3AF;">Discovery answers</p>

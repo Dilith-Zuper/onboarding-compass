@@ -144,6 +144,7 @@ export default function WizardShell({
                 answers={answers}
                 changeRequests={changeRequests}
                 saEmail={saEmail}
+                isPreview={isPreview}
                 onChangeRequest={(module, text) =>
                   setChangeRequests((prev) => ({ ...prev, [module]: text }))
                 }

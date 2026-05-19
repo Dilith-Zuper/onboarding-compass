@@ -1,139 +1,422 @@
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
-import { QUESTIONS } from '@/lib/questions';
+import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
+import { QUESTIONS, SECTIONS, getEffectiveOptions } from '@/lib/questions';
 import { CONFIG_MATRIX } from '@/lib/configMatrix';
+import { renderMessagePlain } from '@/lib/notifications/templates';
+import type {
+  ZuperCategory,
+  ZuperChecklist,
+  ZuperNotification,
+  ZuperWorkflowSummary,
+} from '@/lib/zuper/transformer';
 
 const ORANGE = '#F97316';
 const DARK   = '#1A1A1A';
 const MUTED  = '#6B7280';
+const FAINT  = '#9CA3AF';
 const BG     = '#FAF9F7';
 const BORDER = '#E5E2DC';
 
 const s = StyleSheet.create({
-  page:         { fontFamily: 'Helvetica', backgroundColor: BG, padding: 48 },
-  cover:        { flex: 1, justifyContent: 'center' },
-  eyebrow:      { fontSize: 9, fontWeight: 'bold', color: ORANGE, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
-  h1:           { fontSize: 28, fontWeight: 'bold', color: DARK, marginBottom: 6, lineHeight: 1.2 },
-  h2:           { fontSize: 16, fontWeight: 'bold', color: DARK, marginBottom: 12 },
-  h3:           { fontSize: 11, fontWeight: 'bold', color: DARK, marginBottom: 6 },
-  body:         { fontSize: 10, color: MUTED, lineHeight: 1.5 },
-  small:        { fontSize: 9,  color: MUTED },
-  label:        { fontSize: 8,  fontWeight: 'bold', color: MUTED, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 2 },
-  section:      { marginBottom: 28 },
-  card:         { backgroundColor: '#FFFFFF', borderRadius: 8, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: BORDER },
-  row:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  divider:      { borderBottomWidth: 1, borderBottomColor: BORDER, marginVertical: 16 },
-  badge:        { fontSize: 8, fontWeight: 'bold', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  orangeBadge:  { backgroundColor: '#FFF7ED', color: ORANGE },
-  amberBadge:   { backgroundColor: '#FFFBEB', color: '#B45309' },
-  requestCard:  { backgroundColor: '#FFFBEB', borderRadius: 8, padding: 12, marginBottom: 6, borderWidth: 1, borderColor: '#FDE68A' },
-  footer:       { position: 'absolute', bottom: 32, left: 48, right: 48, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  page:        { fontFamily: 'Helvetica', backgroundColor: BG, padding: 40 },
+  cover:       { flex: 1, justifyContent: 'center' },
+  eyebrow:     { fontSize: 8, fontWeight: 'bold', color: ORANGE, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
+  h1:          { fontSize: 26, fontWeight: 'bold', color: DARK, marginBottom: 6, lineHeight: 1.2 },
+  h2:          { fontSize: 16, fontWeight: 'bold', color: DARK, marginBottom: 14 },
+  h3:          { fontSize: 11, fontWeight: 'bold', color: DARK, marginBottom: 4 },
+  body:        { fontSize: 9.5, color: MUTED, lineHeight: 1.45 },
+  bodyDark:    { fontSize: 9.5, color: DARK, lineHeight: 1.45 },
+  small:       { fontSize: 8.5, color: FAINT },
+  label:       { fontSize: 7.5, fontWeight: 'bold', color: FAINT, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 2 },
+  section:     { marginBottom: 22 },
+  card:        { backgroundColor: '#FFFFFF', borderRadius: 6, padding: 10, marginBottom: 6, borderWidth: 1, borderColor: BORDER },
+  subCard:     { backgroundColor: BG, borderRadius: 5, padding: 8, marginBottom: 5, borderWidth: 1, borderColor: BORDER },
+  row:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  rowGap:      { flexDirection: 'row', gap: 16 },
+  divider:     { borderBottomWidth: 1, borderBottomColor: BORDER, marginVertical: 14 },
+  badge:       { fontSize: 7.5, fontWeight: 'bold', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 12 },
+  orangeBadge: { backgroundColor: '#FFF7ED', color: ORANGE },
+  amberBadge:  { backgroundColor: '#FFFBEB', color: '#B45309' },
+  blueBadge:   { backgroundColor: '#EFF6FF', color: '#1D4ED8' },
+  greenBadge:  { backgroundColor: '#F0FDF4', color: '#16A34A' },
+  greyBadge:   { backgroundColor: '#F3F4F6', color: MUTED },
+  bullet:      { fontSize: 9.5, color: MUTED, lineHeight: 1.45 },
+  requestCard: { backgroundColor: '#FFFBEB', borderRadius: 6, padding: 10, marginBottom: 5, borderWidth: 1, borderColor: '#FDE68A' },
+  renameRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  strike:      { fontSize: 9, color: FAINT, textDecoration: 'line-through' },
+  flowImage:   { width: '100%', maxHeight: 600, objectFit: 'contain' },
+  footer:      { position: 'absolute', bottom: 24, left: 40, right: 40, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });
 
-function Label({ children }: { children: string }) {
-  return <Text style={s.label}>{children}</Text>;
+interface SectionHeaderProps { number: string | number; title: string }
+function SectionHeader({ number, title }: SectionHeaderProps) {
+  return (
+    <>
+      <Text style={s.eyebrow}>Section {number}</Text>
+      <Text style={s.h2}>{title}</Text>
+    </>
+  );
 }
+
+function Footer({ orgName, page }: { orgName: string; page: number }) {
+  return (
+    <View style={s.footer} fixed>
+      <Text style={s.small}>{orgName} — Onboarding Report</Text>
+      <Text style={s.small}>Page {page}</Text>
+    </View>
+  );
+}
+
+interface RenameMap { [uid: string]: { newName: string; originalName: string } }
 
 interface ReportProps {
   orgName: string;
   customerName: string;
   saEmail: string;
+  customerEmail: string;
   answers: Record<string, any>;
   changeRequests: Record<string, string>;
   submittedAt: string;
+  snapshot: {
+    categories?: ZuperCategory[];
+    checklists?: ZuperChecklist[];
+    notifications?: ZuperNotification[];
+    workflows?: ZuperWorkflowSummary[];
+  } | null;
+  flowChartImage?: string | null;
 }
 
 export function OnboardingReport({
-  orgName, customerName, saEmail, answers, changeRequests, submittedAt,
+  orgName,
+  customerName,
+  saEmail,
+  customerEmail,
+  answers,
+  changeRequests,
+  submittedAt,
+  snapshot,
+  flowChartImage,
 }: ReportProps) {
   const date = new Date(submittedAt).toLocaleDateString('en-US', {
     year: 'numeric', month: 'long', day: 'numeric',
   });
 
-  // Map question IDs to human-readable answers
+  // Renames pulled from the merged answers map
+  const categoryRenames: RenameMap = {};
+  const statusRenames: RenameMap = {};
+  for (const [key, value] of Object.entries(answers)) {
+    if (!key.startsWith('__rename:')) continue;
+    if (!value || typeof value !== 'object') continue;
+    const v = value as { newName?: string; originalName?: string };
+    if (!v.newName || !v.originalName) continue;
+    if (key.startsWith('__rename:category:')) {
+      categoryRenames[key.slice('__rename:category:'.length)] = { newName: v.newName, originalName: v.originalName };
+    } else if (key.startsWith('__rename:status:')) {
+      statusRenames[key.slice('__rename:status:'.length)] = { newName: v.newName, originalName: v.originalName };
+    }
+  }
+
+  // Discovery answers (skip reserved keys like __customer_name and __rename:*)
   const answeredQuestions = QUESTIONS
-    .filter((q) => answers[q.id] !== undefined && answers[q.id] !== null && answers[q.id] !== '')
+    .filter((q) => {
+      const a = answers[q.id];
+      if (a === undefined || a === null || a === '') return false;
+      if (Array.isArray(a) && a.length === 0) return false;
+      return true;
+    })
     .map((q) => {
       const raw = answers[q.id];
+      const opts = getEffectiveOptions(q, answers);
+      const labelByValue = new Map(opts.map((o) => [o.value, o.label]));
+
       let display: string;
-      if (Array.isArray(raw)) {
-        const optionLabels = (q.options ?? []).reduce<Record<string, string>>((acc, o) => {
-          acc[o.value] = o.label;
-          return acc;
-        }, {});
-        display = raw.map((v) => optionLabels[v] || v).join(', ');
-      } else if (q.options) {
-        const opt = (q.options ?? []).find((o) => o.value === raw);
-        display = opt?.label || raw;
+      if (q.type === 'file_upload') {
+        display = raw && typeof raw === 'object' && raw.fileName ? `${raw.fileName} (uploaded)` : 'File uploaded';
+      } else if (Array.isArray(raw)) {
+        display = raw.filter((v) => v !== 'other').map((v) => labelByValue.get(v) || String(v)).join(', ');
+        if (raw.includes('other')) display += display ? ', + other' : 'Other';
+      } else if (opts.length > 0) {
+        display = labelByValue.get(raw) || String(raw);
       } else {
         display = String(raw);
       }
-      return { question: q.text, answer: display };
+      return { section: q.section, question: q.text, answer: display };
     });
+
+  const answersBySection = SECTIONS
+    .map((sec) => ({ section: sec, items: answeredQuestions.filter((qa) => qa.section === sec.id) }))
+    .filter((g) => g.items.length > 0);
 
   const activeChangeRequests = CONFIG_MATRIX
     .filter((m) => changeRequests[m.module]?.trim())
     .map((m) => ({ label: m.label, text: changeRequests[m.module] }));
 
+  const categories       = snapshot?.categories ?? [];
+  const checklists       = (snapshot?.checklists ?? []).filter((c) => c.items.length > 0);
+  const liveNotifs       = (snapshot?.notifications ?? []).filter((n) => n.isActive);
+  const activeWorkflows  = (snapshot?.workflows ?? []).filter((w) => w.isActive);
+  const selectedBrands: string[] = Array.isArray(answers['brands'])
+    ? answers['brands'].filter((b: string) => b !== 'other')
+    : [];
+
+  const renameSummary: Array<{ kind: string; original: string; updated: string }> = [
+    ...Object.values(categoryRenames).map((r) => ({ kind: 'Category', original: r.originalName, updated: r.newName })),
+    ...Object.values(statusRenames).map((r) => ({ kind: 'Status', original: r.originalName, updated: r.newName })),
+  ];
+
   return (
     <Document title={`${orgName} — Onboarding Report`} author="Zuper Onboarding Compass">
-      {/* Cover page */}
+
+      {/* ── Cover ─────────────────────────────────────────────────────────── */}
       <Page size="A4" style={s.page}>
         <View style={s.cover}>
           <Text style={s.eyebrow}>Onboarding Configuration Report</Text>
           <Text style={s.h1}>{orgName}</Text>
-          <Text style={[s.body, { marginBottom: 4 }]}>Prepared for {customerName}</Text>
-          <Text style={s.small}>{date}</Text>
+          <Text style={[s.body, { marginBottom: 4 }]}>Prepared with {customerName}</Text>
+          <Text style={s.small}>Submitted {date}</Text>
           <View style={s.divider} />
-          <View style={s.row}>
-            <View>
-              <Label>SA / BA</Label>
-              <Text style={s.body}>{saEmail}</Text>
+          <View style={s.rowGap}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.label}>SA / BA</Text>
+              <Text style={s.body}>{saEmail || 'onboarding@zuper.co'}</Text>
             </View>
-            <View>
-              <Label>Total change requests</Label>
-              <Text style={s.body}>{activeChangeRequests.length}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.label}>Customer</Text>
+              <Text style={s.body}>{customerEmail || '—'}</Text>
             </View>
-            <View>
-              <Label>Questions answered</Label>
+            <View style={{ flex: 1 }}>
+              <Text style={s.label}>Questions answered</Text>
               <Text style={s.body}>{answeredQuestions.length}</Text>
             </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.label}>Change requests</Text>
+              <Text style={s.body}>{activeChangeRequests.length}</Text>
+            </View>
           </View>
         </View>
-        <View style={s.footer}>
-          <Text style={s.small}>Zuper Onboarding Compass</Text>
-          <Text style={s.small}>Confidential</Text>
-        </View>
+        <Footer orgName={orgName} page={1} />
       </Page>
 
-      {/* Discovery answers */}
+      {/* ── Discovery answers ─────────────────────────────────────────────── */}
       <Page size="A4" style={s.page}>
-        <Text style={s.eyebrow}>Section 1</Text>
-        <Text style={[s.h2, { marginBottom: 16 }]}>Discovery answers</Text>
-
-        {answeredQuestions.map((qa, i) => (
-          <View key={i} style={s.card}>
-            <Text style={s.label}>{qa.question}</Text>
-            <Text style={[s.body, { marginTop: 2 }]}>{qa.answer}</Text>
+        <SectionHeader number={1} title="Discovery answers" />
+        {answersBySection.length === 0 && (
+          <Text style={s.body}>No answers were submitted.</Text>
+        )}
+        {answersBySection.map((group, i) => (
+          <View key={i} style={s.section} wrap={false}>
+            <Text style={[s.label, { color: ORANGE, marginBottom: 6 }]}>{group.section.label}</Text>
+            {group.items.map((qa, j) => (
+              <View key={j} style={s.card}>
+                <Text style={s.label}>{qa.question}</Text>
+                <Text style={[s.bodyDark, { marginTop: 2 }]}>{qa.answer}</Text>
+              </View>
+            ))}
           </View>
         ))}
-
-        <View style={s.footer}>
-          <Text style={s.small}>{orgName} — Onboarding Report</Text>
-          <Text style={s.small}>Page 2</Text>
-        </View>
+        <Footer orgName={orgName} page={2} />
       </Page>
 
-      {/* Change requests */}
+      {/* ── Flow diagram ──────────────────────────────────────────────────── */}
       <Page size="A4" style={s.page}>
-        <Text style={s.eyebrow}>Section 2</Text>
-        <Text style={[s.h2, { marginBottom: 16 }]}>Change requests</Text>
+        <SectionHeader number={2} title="Your flow" />
+        {flowChartImage ? (
+          <>
+            <Text style={[s.body, { marginBottom: 10 }]}>
+              How {orgName}'s jobs will move through Zuper, based on the wizard answers.
+            </Text>
+            <Image src={flowChartImage} style={s.flowImage} />
+          </>
+        ) : (
+          <Text style={s.body}>Flow chart capture was unavailable. Review the live wizard for the current flow diagram.</Text>
+        )}
+        <Footer orgName={orgName} page={3} />
+      </Page>
 
+      {/* ── Findings: live account ────────────────────────────────────────── */}
+      <Page size="A4" style={s.page}>
+        <SectionHeader number={3} title="Findings: your live Zuper account" />
+
+        {/* Categories */}
+        <View style={s.section}>
+          <Text style={[s.h3, { marginBottom: 6 }]}>Categories ({categories.length})</Text>
+          {categories.length === 0 ? (
+            <Text style={s.body}>No categories found.</Text>
+          ) : (
+            categories.map((cat) => {
+              const rename = categoryRenames[cat.uid];
+              const label = rename?.newName ?? cat.name;
+              return (
+                <View key={cat.uid} style={s.subCard}>
+                  <View style={s.row}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.bodyDark}>{label}</Text>
+                      {rename && (
+                        <Text style={[s.small, { marginTop: 1 }]}>
+                          was <Text style={s.strike}>{rename.originalName}</Text>
+                        </Text>
+                      )}
+                    </View>
+                    <Text style={s.small}>{cat.statuses.length} status{cat.statuses.length !== 1 ? 'es' : ''}</Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
+
+        {/* Statuses */}
+        <View style={s.section}>
+          <Text style={[s.h3, { marginBottom: 6 }]}>Statuses</Text>
+          {categories.filter((c) => c.statuses.length > 0).map((cat) => {
+            const catLabel = categoryRenames[cat.uid]?.newName ?? cat.name;
+            return (
+              <View key={cat.uid} style={{ marginBottom: 8 }} wrap={false}>
+                <Text style={[s.label, { marginBottom: 4 }]}>{catLabel}</Text>
+                {cat.statuses.map((st) => {
+                  const rename = statusRenames[st.uid];
+                  const label = rename?.newName ?? st.name;
+                  return (
+                    <View key={st.uid} style={[s.subCard, { paddingVertical: 5 }]}>
+                      <Text style={s.bodyDark}>
+                        {label}
+                        {rename && (
+                          <Text style={s.small}>{'  '}(was <Text style={s.strike}>{rename.originalName}</Text>)</Text>
+                        )}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })}
+        </View>
+
+        <Footer orgName={orgName} page={4} />
+      </Page>
+
+      {/* ── Checklists ────────────────────────────────────────────────────── */}
+      <Page size="A4" style={s.page}>
+        <SectionHeader number={4} title="Checklists per category" />
+        {checklists.length === 0 ? (
+          <Text style={s.body}>No checklist items configured.</Text>
+        ) : (
+          checklists.map((cl) => (
+            <View key={cl.categoryUid} style={s.section} wrap={false}>
+              <Text style={[s.h3, { marginBottom: 4 }]}>{categoryRenames[cl.categoryUid]?.newName ?? cl.categoryName}</Text>
+              <Text style={[s.small, { marginBottom: 6 }]}>{cl.items.length} field{cl.items.length !== 1 ? 's' : ''}</Text>
+              {cl.items.map((item) => (
+                <View key={item.uid} style={[s.subCard, { paddingVertical: 6 }]}>
+                  <Text style={s.bodyDark}>
+                    {item.label}{item.isRequired ? ' *' : ''}
+                  </Text>
+                  <Text style={s.small}>{item.type}</Text>
+                </View>
+              ))}
+            </View>
+          ))
+        )}
+        <Footer orgName={orgName} page={5} />
+      </Page>
+
+      {/* ── Notifications (active only) ───────────────────────────────────── */}
+      <Page size="A4" style={s.page}>
+        <SectionHeader number={5} title="Active customer notifications" />
+        {liveNotifs.length === 0 ? (
+          <Text style={s.body}>No active notifications configured.</Text>
+        ) : (
+          liveNotifs.map((n) => (
+            <View key={n.uid} style={s.card} wrap={false}>
+              <View style={[s.row, { marginBottom: 4 }]}>
+                <Text style={s.bodyDark}>{n.name}</Text>
+                <Text style={[s.badge, n.type === 'SMS' ? { backgroundColor: '#FAF5FF', color: '#7C3AED' } : s.blueBadge]}>
+                  {n.type}
+                </Text>
+              </View>
+              <Text style={s.small}>
+                {n.categoryName}{n.statusName ? ` · ${n.statusName}` : ''}
+              </Text>
+              {n.emailSubject && (
+                <Text style={[s.bodyDark, { marginTop: 4, fontSize: 9 }]}>Subject: {n.emailSubject}</Text>
+              )}
+              {(n as any).message && (
+                <Text style={[s.body, { marginTop: 3 }]} >{renderMessagePlain((n as any).message)}</Text>
+              )}
+            </View>
+          ))
+        )}
+        <Footer orgName={orgName} page={6} />
+      </Page>
+
+      {/* ── Workflows ─────────────────────────────────────────────────────── */}
+      <Page size="A4" style={s.page}>
+        <SectionHeader number={6} title="Active automations" />
+        {activeWorkflows.length === 0 ? (
+          <Text style={s.body}>No active automations.</Text>
+        ) : (
+          activeWorkflows.map((wf) => (
+            <View key={wf.uid} style={s.card} wrap={false}>
+              <Text style={s.bodyDark}>{wf.name}</Text>
+              <Text style={[s.small, { marginTop: 1 }]}>
+                Trigger: {wf.trigger} · {wf.nodeCount} node{wf.nodeCount !== 1 ? 's' : ''}
+              </Text>
+              {wf.description ? (
+                <Text style={[s.body, { marginTop: 4 }]}>{wf.description}</Text>
+              ) : (
+                <Text style={[s.small, { marginTop: 4, fontStyle: 'italic' }]}>No description set in Zuper.</Text>
+              )}
+            </View>
+          ))
+        )}
+        <Footer orgName={orgName} page={7} />
+      </Page>
+
+      {/* ── Proposals (CPQ) ───────────────────────────────────────────────── */}
+      <Page size="A4" style={s.page}>
+        <SectionHeader number={7} title="Proposals (CPQ)" />
+        {selectedBrands.length === 0 ? (
+          <Text style={s.body}>No roofing brands selected.</Text>
+        ) : (
+          <>
+            <Text style={[s.body, { marginBottom: 10 }]}>
+              Good / Better / Best proposal structure to build in Zuper CPQ per selected brand.
+            </Text>
+            {selectedBrands.map((b) => (
+              <View key={b} style={s.subCard} wrap={false}>
+                <Text style={s.bodyDark}>{b.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</Text>
+                <Text style={s.small}>Good · Better · Best tiers to be set up</Text>
+              </View>
+            ))}
+          </>
+        )}
+        <Footer orgName={orgName} page={8} />
+      </Page>
+
+      {/* ── Renames + change requests ─────────────────────────────────────── */}
+      <Page size="A4" style={s.page}>
+        <SectionHeader number={8} title="Renames & change requests" />
+
+        <Text style={[s.h3, { marginBottom: 4 }]}>Inline renames ({renameSummary.length})</Text>
+        {renameSummary.length === 0 ? (
+          <Text style={[s.body, { marginBottom: 14 }]}>No renames.</Text>
+        ) : (
+          renameSummary.map((r, i) => (
+            <View key={i} style={[s.renameRow]}>
+              <Text style={[s.badge, s.greyBadge, { marginRight: 6 }]}>{r.kind}</Text>
+              <Text style={s.bodyDark}>{r.original}</Text>
+              <Text style={[s.body, { marginHorizontal: 6 }]}>→</Text>
+              <Text style={s.bodyDark}>{r.updated}</Text>
+            </View>
+          ))
+        )}
+
+        <View style={{ height: 12 }} />
+        <Text style={[s.h3, { marginBottom: 4 }]}>Change requests ({activeChangeRequests.length})</Text>
         {activeChangeRequests.length === 0 ? (
-          <Text style={s.body}>No change requests submitted.</Text>
+          <Text style={s.body}>None — defaults will be configured as standard.</Text>
         ) : (
           activeChangeRequests.map((cr, i) => (
-            <View key={i} style={s.requestCard}>
-              <View style={[s.row, { marginBottom: 6 }]}>
+            <View key={i} style={s.requestCard} wrap={false}>
+              <View style={[s.row, { marginBottom: 4 }]}>
                 <Text style={s.label}>{cr.label}</Text>
                 <Text style={[s.badge, s.amberBadge]}>Change request</Text>
               </View>
@@ -142,10 +425,13 @@ export function OnboardingReport({
           ))
         )}
 
-        <View style={s.footer}>
-          <Text style={s.small}>{orgName} — Onboarding Report</Text>
-          <Text style={s.small}>Page 3</Text>
-        </View>
+        <View style={s.divider} />
+        <Text style={s.body}>
+          Questions about anything in this report? Reach out to{' '}
+          {saEmail ? `${saEmail} (CC onboarding@zuper.co)` : 'onboarding@zuper.co'}.
+        </Text>
+
+        <Footer orgName={orgName} page={9} />
       </Page>
     </Document>
   );

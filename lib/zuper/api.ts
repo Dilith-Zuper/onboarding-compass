@@ -60,14 +60,3 @@ export async function fetchZuperSnapshot(
 
   return { categories, checklists, notifications, workflows };
 }
-
-export async function fetchWorkflowDetail(
-  apiKey: string,
-  dcRegion: string,
-  workflowUid: string
-): Promise<object> {
-  const url = `https://${dcRegion}-workflow.zuperpro.com/api/workflows/${workflowUid}`;
-  const res = await fetch(url, { headers: { 'x-api-key': apiKey } });
-  const json = await res.json();
-  return json?.data || json;
-}

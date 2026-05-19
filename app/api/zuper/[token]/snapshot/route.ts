@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { fetchZuperSnapshot, fetchWorkflowDetail } from '@/lib/zuper/api';
-import { explainWorkflow } from '@/lib/ai/explainWorkflow';
+import { fetchZuperSnapshot } from '@/lib/zuper/api';
 
 export async function GET(
   req: NextRequest,
@@ -53,29 +52,6 @@ export async function GET(
 
   if (saveError) {
     return NextResponse.json({ error: saveError.message }, { status: 500 });
-  }
-
-  // Fire AI explanations for first 10 workflows asynchronously
-  if (snapshot.workflows.length > 0) {
-    const toExplain = snapshot.workflows.slice(0, 10);
-    Promise.allSettled(
-      toExplain.map(async (wf) => {
-        const detail = await fetchWorkflowDetail(session.zuper_api_key, session.dc_region, wf.uid);
-        const explanation = await explainWorkflow(detail);
-        return { uid: wf.uid, explanation };
-      })
-    ).then(async (results) => {
-      const explanations: Record<string, any> = {};
-      for (const r of results) {
-        if (r.status === 'fulfilled') {
-          explanations[r.value.uid] = r.value.explanation;
-        }
-      }
-      await supabase
-        .from('snapshots')
-        .update({ workflow_explanations: explanations })
-        .eq('id', saved.id);
-    }).catch(() => {});
   }
 
   return NextResponse.json({ snapshot: saved });

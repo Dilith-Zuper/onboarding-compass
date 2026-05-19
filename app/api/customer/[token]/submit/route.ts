@@ -8,6 +8,7 @@ import { createElement } from 'react';
 import { cleanEnv } from '@/lib/utils';
 
 const resend = new Resend(cleanEnv(process.env.RESEND_API_KEY));
+const ONBOARDING_EMAIL = 'onboarding@zuper.co';
 
 export async function POST(
   req: NextRequest,
@@ -15,7 +16,6 @@ export async function POST(
 ) {
   const supabase = createClient();
 
-  // 1. Validate session
   const { data: session, error: sessionError } = await supabase
     .from('sessions')
     .select('*')
@@ -29,9 +29,9 @@ export async function POST(
     return NextResponse.json({ error: 'Already submitted' }, { status: 409 });
   }
 
-  const { customerName, answers, changeRequests } = await req.json();
+  const { customerName, answers, changeRequests, flowChartImage } = await req.json();
 
-  // 2. Upsert all responses
+  // Upsert all responses
   const responseRows = Object.entries(answers as Record<string, any>).map(([question_id, answer]) => ({
     session_id: session.id,
     question_id,
@@ -44,7 +44,7 @@ export async function POST(
       .upsert(responseRows, { onConflict: 'session_id,question_id' });
   }
 
-  // 3. Finalise change requests (delete + re-insert all)
+  // Finalise change requests (delete + re-insert all)
   await supabase.from('change_requests').delete().eq('session_id', session.id);
   const crRows = Object.entries(changeRequests as Record<string, string>)
     .filter(([, text]) => text?.trim())
@@ -53,42 +53,55 @@ export async function POST(
     await supabase.from('change_requests').insert(crRows);
   }
 
-  // 4. Generate PDF
+  // Read latest snapshot for the report
+  const { data: latestSnapshot } = await supabase
+    .from('snapshots')
+    .select('categories, checklists, notifications, workflows')
+    .eq('session_id', session.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  // Generate PDF
   const submittedAt = new Date().toISOString();
   let pdfUrl: string | null = null;
+  let pdfBuffer: Buffer | null = null;
 
   try {
-    const buffer = await renderToBuffer(
+    pdfBuffer = await renderToBuffer(
       createElement(OnboardingReport, {
         orgName: session.org_name,
         customerName,
         saEmail: session.sa_email,
+        customerEmail: session.customer_email,
         answers,
         changeRequests,
         submittedAt,
+        snapshot: latestSnapshot ?? null,
+        flowChartImage: typeof flowChartImage === 'string' ? flowChartImage : null,
       }) as any
     );
 
     const fileName = `${session.id}/onboarding-report.pdf`;
     const { error: storageError } = await supabase.storage
       .from('reports')
-      .upload(fileName, buffer, { contentType: 'application/pdf', upsert: true });
+      .upload(fileName, pdfBuffer, { contentType: 'application/pdf', upsert: true });
 
     if (!storageError) {
       const { data: urlData } = supabase.storage.from('reports').getPublicUrl(fileName);
       pdfUrl = urlData?.publicUrl ?? null;
     }
-  } catch {
-    // PDF generation failure is non-fatal
+  } catch (err) {
+    console.error('PDF generation failed:', err);
   }
 
-  // 5. Send emails
+  // Send emails
   let emailSent = false;
   const appUrl = cleanEnv(process.env.NEXT_PUBLIC_APP_URL) || req.nextUrl.origin;
-  const fromEmail = cleanEnv(process.env.RESEND_FROM_EMAIL) || 'onboarding@zuper.co';
+  const fromEmail = cleanEnv(process.env.RESEND_FROM_EMAIL) || ONBOARDING_EMAIL;
 
   try {
-    const saEmail = buildSAEmail({
+    const saEmailContent = buildSAEmail({
       orgName: session.org_name,
       customerName,
       customerEmail: session.customer_email,
@@ -99,34 +112,47 @@ export async function POST(
       appUrl,
     });
 
-    const customerEmail = buildCustomerEmail({
+    const customerEmailContent = buildCustomerEmail({
       orgName: session.org_name,
       customerName,
       saEmail: session.sa_email,
       changeRequests,
     });
 
+    const pdfAttachment = pdfBuffer
+      ? [{
+          filename: `${session.org_name.replace(/[^A-Za-z0-9_-]+/g, '_')}-onboarding-report.pdf`,
+          content: pdfBuffer.toString('base64'),
+        }]
+      : undefined;
+
+    const saTo = [ONBOARDING_EMAIL];
+    const saCc = session.sa_email && session.sa_email.toLowerCase() !== ONBOARDING_EMAIL ? [session.sa_email] : undefined;
+
     await Promise.all([
       resend.emails.send({
         from: fromEmail,
-        to: ['dilith@zuper.co'],
-        subject: saEmail.subject,
-        html: saEmail.html,
-        attachments: pdfUrl ? undefined : [],
+        to: saTo,
+        cc: saCc,
+        subject: saEmailContent.subject,
+        html: saEmailContent.html,
+        attachments: pdfAttachment,
       }),
-      resend.emails.send({
-        from: fromEmail,
-        to: ['dilith@zuper.co'],
-        subject: customerEmail.subject,
-        html: customerEmail.html,
-      }),
+      session.customer_email
+        ? resend.emails.send({
+            from: fromEmail,
+            to: [session.customer_email],
+            subject: customerEmailContent.subject,
+            html: customerEmailContent.html,
+          })
+        : Promise.resolve(),
     ]);
     emailSent = true;
-  } catch {
-    // Email failure is non-fatal
+  } catch (err) {
+    console.error('Email send failed:', err);
   }
 
-  // 6. Create submission record
+  // Create submission record
   const selectedBrands = Array.isArray(answers['brands']) ? answers['brands'] : [];
   const selectedSuppliers = Array.isArray(answers['suppliers']) ? answers['suppliers'] : [];
 
@@ -139,7 +165,6 @@ export async function POST(
     email_sent: emailSent,
   });
 
-  // 7. Update session status
   await supabase
     .from('sessions')
     .update({ status: 'submitted', updated_at: submittedAt })
