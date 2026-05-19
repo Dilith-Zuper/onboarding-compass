@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Flow chart now shows lead source nodes (fan-in to "Lead created" / "Customer created" — name driven by whether a Lead Qualification job exists), external measurement-provider nodes feeding into CPQ, and a new "Material ordering" pre-production milestone that fans POs out to selected suppliers.
 - Flow chart canvas is now full-page, nodes are draggable, mouse-wheel zoom is enabled, and a mini-map sits in the corner. Positions are computed in `lib/flow/variants.ts` so the layout adapts to selections.
 - "Still needed" inline hint above the Continue button on the wizard lists the exact questions blocking the next page so customers aren't stuck guessing.
+- Flow chart nodes now show the actual notification subject lines (up to 3 per node, with "+N more" overflow) and a channel-colour dot, replacing the previous "N notifs" count.
 
 ### Changed
 - `payment_timing` is now multi-select.

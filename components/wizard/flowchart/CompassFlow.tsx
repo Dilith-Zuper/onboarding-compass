@@ -61,7 +61,7 @@ export function CompassFlow({ answers, onNodeClick, className }: Props) {
         nodeType: n.type,
         isOptional: n.isOptional,
         isExternal: n.isExternal,
-        notificationCount: (notifsByNode[n.id] ?? []).length,
+        notifications: (notifsByNode[n.id] ?? []).map((x) => ({ title: x.title, channel: x.channel })),
       },
     }));
 
