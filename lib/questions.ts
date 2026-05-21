@@ -249,20 +249,6 @@ export const QUESTIONS: Question[] = [
     required: true,
   },
 
-  {
-    id: 'widget_services',
-    section: 'website',
-    text: 'What services do you want listed in the online booking form?',
-    subtext:
-      'List each one on a new line. E.g:\nRoof Inspection\nRoof Replacement\nGutter Repair\n\nEach service maps to a job category in Zuper and is shown to the customer when they book.',
-    type: 'multi_line',
-    conditions: [
-      { questionId: 'wants_booking_widget', answer: 'yes' },
-      { questionId: 'has_lead_qualification', answer: 'no' },
-    ],
-    required: true,
-  },
-
   // ─── MEASUREMENT & ESTIMATION ────────────────────────────────────────────────
 
   {
@@ -399,22 +385,6 @@ export const QUESTIONS: Question[] = [
     required: true,
   },
 
-  {
-    id: 'crew_communication',
-    section: 'crew_ops',
-    text: 'How do you communicate job details to crews before an install?',
-    subtext: 'Pick all that apply.',
-    type: 'multi_select',
-    options: [
-      { value: 'verbal',     label: 'Verbal / phone call' },
-      { value: 'text',       label: 'Text' },
-      { value: 'email',      label: 'Email' },
-      { value: 'paper_wo',   label: 'Paper work order' },
-      { value: 'digital_wo', label: 'Digital work order / app' },
-      { value: 'nothing',    label: 'Nothing formal yet' },
-    ],
-    required: true,
-  },
 
   {
     id: 'crew_briefing_info',

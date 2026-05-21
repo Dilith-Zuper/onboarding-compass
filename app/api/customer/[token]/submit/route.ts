@@ -3,11 +3,10 @@ import { createClient } from '@/lib/supabase/server';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { OnboardingReport } from '@/lib/pdf/OnboardingReport';
 import { buildSAEmail, buildCustomerEmail } from '@/lib/email/templates';
-import { Resend } from 'resend';
+import { sendEmail } from '@/lib/email/sender';
 import { createElement } from 'react';
 import { cleanEnv } from '@/lib/utils';
 
-const resend = new Resend(cleanEnv(process.env.RESEND_API_KEY));
 const ONBOARDING_EMAIL = 'onboarding@zuper.co';
 
 export async function POST(
@@ -29,7 +28,7 @@ export async function POST(
     return NextResponse.json({ error: 'Already submitted' }, { status: 409 });
   }
 
-  const { customerName, answers, changeRequests, flowChartImage } = await req.json();
+  const { customerName, answers, changeRequests } = await req.json();
 
   // Upsert all responses
   const responseRows = Object.entries(answers as Record<string, any>).map(([question_id, answer]) => ({
@@ -62,8 +61,11 @@ export async function POST(
     .limit(1)
     .single();
 
+  const appUrl = cleanEnv(process.env.NEXT_PUBLIC_APP_URL) || req.nextUrl.origin;
+
   // Generate PDF
   const submittedAt = new Date().toISOString();
+  const wizardUrl = `${appUrl}/w/${params.token}`;
   let pdfUrl: string | null = null;
   let pdfBuffer: Buffer | null = null;
 
@@ -78,7 +80,7 @@ export async function POST(
         changeRequests,
         submittedAt,
         snapshot: latestSnapshot ?? null,
-        flowChartImage: typeof flowChartImage === 'string' ? flowChartImage : null,
+        wizardUrl,
       }) as any
     );
 
@@ -97,59 +99,55 @@ export async function POST(
 
   // Send emails
   let emailSent = false;
-  const appUrl = cleanEnv(process.env.NEXT_PUBLIC_APP_URL) || req.nextUrl.origin;
-  const fromEmail = cleanEnv(process.env.RESEND_FROM_EMAIL) || ONBOARDING_EMAIL;
 
-  try {
-    const saEmailContent = buildSAEmail({
-      orgName: session.org_name,
-      customerName,
-      customerEmail: session.customer_email,
-      saEmail: session.sa_email,
-      answers,
-      changeRequests,
-      sessionId: session.id,
-      appUrl,
-    });
+  const saEmailContent = buildSAEmail({
+    orgName: session.org_name,
+    customerName,
+    customerEmail: session.customer_email,
+    saEmail: session.sa_email,
+    answers,
+    changeRequests,
+    sessionId: session.id,
+    appUrl,
+  });
 
-    const customerEmailContent = buildCustomerEmail({
-      orgName: session.org_name,
-      customerName,
-      saEmail: session.sa_email,
-      changeRequests,
-    });
+  const customerEmailContent = buildCustomerEmail({
+    orgName: session.org_name,
+    customerName,
+    saEmail: session.sa_email,
+    changeRequests,
+  });
 
-    const pdfAttachment = pdfBuffer
-      ? [{
-          filename: `${session.org_name.replace(/[^A-Za-z0-9_-]+/g, '_')}-onboarding-report.pdf`,
-          content: pdfBuffer.toString('base64'),
-        }]
-      : undefined;
+  const pdfAttachment = pdfBuffer
+    ? [{
+        filename: `${session.org_name.replace(/[^A-Za-z0-9_-]+/g, '_')}-onboarding-report.pdf`,
+        content: pdfBuffer.toString('base64'),
+      }]
+    : undefined;
 
-    const saTo = [ONBOARDING_EMAIL];
-    const saCc = session.sa_email && session.sa_email.toLowerCase() !== ONBOARDING_EMAIL ? [session.sa_email] : undefined;
+  const saCc = session.sa_email && session.sa_email.toLowerCase() !== ONBOARDING_EMAIL ? [session.sa_email] : undefined;
 
-    await Promise.all([
-      resend.emails.send({
-        from: fromEmail,
-        to: saTo,
-        cc: saCc,
-        subject: saEmailContent.subject,
-        html: saEmailContent.html,
-        attachments: pdfAttachment,
-      }),
-      session.customer_email
-        ? resend.emails.send({
-            from: fromEmail,
-            to: [session.customer_email],
-            subject: customerEmailContent.subject,
-            html: customerEmailContent.html,
-          })
-        : Promise.resolve(),
-    ]);
+  const [saResult, customerResult] = await Promise.all([
+    sendEmail({
+      to: ONBOARDING_EMAIL,
+      cc: saCc,
+      subject: saEmailContent.subject,
+      html: saEmailContent.html,
+      attachments: pdfAttachment,
+    }),
+    session.customer_email
+      ? sendEmail({
+          to: session.customer_email,
+          subject: customerEmailContent.subject,
+          html: customerEmailContent.html,
+        })
+      : Promise.resolve({ error: null }),
+  ]);
+
+  if (saResult.error || customerResult.error) {
+    console.error('Email send failed — SA:', saResult.error?.message, '| Customer:', customerResult.error?.message);
+  } else {
     emailSent = true;
-  } catch (err) {
-    console.error('Email send failed:', err);
   }
 
   // Create submission record

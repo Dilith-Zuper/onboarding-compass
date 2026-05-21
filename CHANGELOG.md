@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- Admin session detail: new "Customer renames" section shows a side-by-side table of original Zuper name vs customer-renamed value, with kind badge (Category / Status). `__rename:*` entries no longer appear raw in the responses list.
+- PDF onboarding report: renamed categories and statuses now render with an amber card background and "Renamed" badge, showing `original → new` inline. Section 8 renames summary also uses amber cards.
+- `.env.example` updated to reflect actual vars in use: `GMAIL_USER`, `GMAIL_APP_PASSWORD` added; stale `ADMIN_PASSWORD`, `ANTHROPIC_API_KEY`, `RESEND_*` vars removed.
 - Inline rename for categories and statuses on the snapshot step — click a tile to edit the name in place; persists via the existing `responses` table under a reserved `__rename:<kind>:<uid>` namespace, surfaced in the PDF report.
 - Friendly placeholder rendering for live customer notifications — `{{customer_name}}` etc. show as small inline pills (`Customer name`), unknowns fall back to `[…]`. Shared util in `lib/notifications/templates.ts` powers both the wizard UI and the PDF.
 - Checklists rendered as a tech-view preview — each field shown as the control the technician sees in the Zuper mobile app (RADIO → Yes/No pills, TEXT → input mock, PHOTO → camera card, SIGNATURE → sign line, etc.).

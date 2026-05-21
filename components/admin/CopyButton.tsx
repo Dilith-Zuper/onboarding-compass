@@ -6,7 +6,7 @@ export function CopyButton({ text, label = 'Copy link' }: { text: string; label?
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(text.replace(/^﻿/, ''));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }

@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { formatDistanceToNow, format } from 'date-fns';
 import { CopyButton } from '@/components/admin/CopyButton';
 import { RefreshSnapshotButton } from '@/components/admin/RefreshSnapshotButton';
+import { SendInviteButton } from '@/components/admin/SendInviteButton';
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   pending:     { label: 'Pending',     cls: 'bg-gray-100 text-gray-500' },
@@ -36,6 +37,19 @@ export default async function SessionDetailPage({ params }: { params: { id: stri
   ]);
 
   const badge = STATUS_BADGE[session.status] || STATUS_BADGE.pending;
+
+  // Extract renames from responses (stored as __rename:category:<uid> / __rename:status:<uid>)
+  const renames = (responses ?? [])
+    .filter((r) => r.question_id.startsWith('__rename:'))
+    .flatMap((r) => {
+      const parts = r.question_id.split(':'); // ['__rename', 'category', uid]
+      const kind = parts[1] as 'category' | 'status';
+      const val = r.answer as { newName?: string; originalName?: string } | null;
+      if (!val || !val.newName || !val.originalName) return [];
+      return [{ kind, originalName: val.originalName, newName: val.newName }];
+    });
+
+  const visibleResponses = (responses ?? []).filter((r) => !r.question_id.startsWith('__rename:'));
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const customerLink = `${appUrl}/w/${session.unique_token}`;
 
@@ -80,6 +94,9 @@ export default async function SessionDetailPage({ params }: { params: { id: stri
             Preview as customer →
           </a>
         </div>
+        <div className="flex items-center justify-end mt-3 pt-3 border-t border-[#E5E2DC]">
+          <SendInviteButton sessionId={params.id} />
+        </div>
       </div>
 
       {/* Snapshot */}
@@ -113,18 +130,67 @@ export default async function SessionDetailPage({ params }: { params: { id: stri
         )}
       </Section>
 
-      {/* Responses */}
-      <Section title={`Discovery responses${responses?.length ? ` · ${responses.length}` : ''}`}>
-        {responses && responses.length > 0 ? (
-          <div className="space-y-2">
-            {responses.map((r) => (
-              <div key={r.id} className="flex gap-4 py-2 border-b border-[#E5E2DC] last:border-0 text-sm">
-                <span className="font-mono text-xs text-gray-400 w-52 shrink-0 pt-0.5">{r.question_id}</span>
-                <span className="text-[#1A1A1A]">
-                  {Array.isArray(r.answer) ? r.answer.join(', ') : String(r.answer)}
-                </span>
+      {/* Renames */}
+      {renames.length > 0 && (
+        <Section title={`Customer renames · ${renames.length}`}>
+          <div className="overflow-hidden rounded-xl border border-[#E5E2DC]">
+            <div className="grid grid-cols-[100px_1fr_1fr] bg-[#FAF9F7] border-b border-[#E5E2DC]">
+              <div className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">Kind</div>
+              <div className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">In Zuper account</div>
+              <div className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">Customer renamed to</div>
+            </div>
+            {renames.map((r, i) => (
+              <div
+                key={i}
+                className="grid grid-cols-[100px_1fr_1fr] border-b border-[#E5E2DC] last:border-0 bg-white hover:bg-amber-50 transition-colors"
+              >
+                <div className="px-4 py-3 flex items-center">
+                  <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${r.kind === 'category' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>
+                    {r.kind}
+                  </span>
+                </div>
+                <div className="px-4 py-3 flex items-center">
+                  <span className="text-sm text-gray-400 line-through">{r.originalName}</span>
+                </div>
+                <div className="px-4 py-3 flex items-center gap-2">
+                  <span className="text-sm font-semibold text-amber-700">{r.newName}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">Renamed</span>
+                </div>
               </div>
             ))}
+          </div>
+        </Section>
+      )}
+
+      {/* Responses */}
+      <Section title={`Discovery responses${visibleResponses.length ? ` · ${visibleResponses.length}` : ''}`}>
+        {visibleResponses.length > 0 ? (
+          <div className="space-y-2">
+            {visibleResponses.map((r) => {
+              const isUpload = r.question_id === 'proposal_sample_upload';
+              const upload = isUpload && r.answer && typeof r.answer === 'object' && !Array.isArray(r.answer)
+                ? r.answer as { url: string; fileName: string }
+                : null;
+              return (
+                <div key={r.id} className="flex gap-4 py-2 border-b border-[#E5E2DC] last:border-0 text-sm">
+                  <span className="font-mono text-xs text-gray-400 w-52 shrink-0 pt-0.5">{r.question_id}</span>
+                  {upload ? (
+                    <a
+                      href={upload.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-orange-500 hover:text-orange-600 font-semibold transition-colors"
+                    >
+                      {upload.fileName} →
+                    </a>
+                  ) : (
+                    <span className="text-[#1A1A1A]">
+                      {Array.isArray(r.answer) ? r.answer.join(', ') : String(r.answer)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <p className="text-sm text-gray-500">No responses yet.</p>
@@ -166,6 +232,7 @@ export default async function SessionDetailPage({ params }: { params: { id: stri
           </div>
         </Section>
       )}
+
 
     </div>
   );

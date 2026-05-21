@@ -1,4 +1,4 @@
-import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
+import { Document, Page, Text, View, Image, Link, StyleSheet } from '@react-pdf/renderer';
 import { QUESTIONS, SECTIONS, getEffectiveOptions } from '@/lib/questions';
 import { CONFIG_MATRIX } from '@/lib/configMatrix';
 import { renderMessagePlain } from '@/lib/notifications/templates';
@@ -44,6 +44,9 @@ const s = StyleSheet.create({
   renameRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   strike:      { fontSize: 9, color: FAINT, textDecoration: 'line-through' },
   flowImage:   { width: '100%', maxHeight: 600, objectFit: 'contain' },
+  flowLink:    { backgroundColor: '#FFF7ED', borderRadius: 6, padding: 14, borderWidth: 1, borderColor: '#FED7AA', marginTop: 8 },
+  flowLinkText:{ fontSize: 11, fontWeight: 'bold', color: ORANGE },
+  flowLinkUrl: { fontSize: 8.5, color: MUTED, marginTop: 4 },
   footer:      { position: 'absolute', bottom: 24, left: 40, right: 40, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });
 
@@ -82,7 +85,7 @@ interface ReportProps {
     notifications?: ZuperNotification[];
     workflows?: ZuperWorkflowSummary[];
   } | null;
-  flowChartImage?: string | null;
+  wizardUrl: string;
 }
 
 export function OnboardingReport({
@@ -94,7 +97,7 @@ export function OnboardingReport({
   changeRequests,
   submittedAt,
   snapshot,
-  flowChartImage,
+  wizardUrl,
 }: ReportProps) {
   const date = new Date(submittedAt).toLocaleDateString('en-US', {
     year: 'numeric', month: 'long', day: 'numeric',
@@ -219,17 +222,13 @@ export function OnboardingReport({
       {/* ── Flow diagram ──────────────────────────────────────────────────── */}
       <Page size="A4" style={s.page}>
         <SectionHeader number={2} title="Your flow" />
-        {flowChartImage ? (
-          <>
-            <Text style={[s.body, { marginBottom: 10 }]}>
-              {`How ${orgName}'s jobs will move through Zuper, based on the wizard answers.`}
-            </Text>
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
-            <Image src={flowChartImage} style={s.flowImage} />
-          </>
-        ) : (
-          <Text style={s.body}>Flow chart capture was unavailable. Review the live wizard for the current flow diagram.</Text>
-        )}
+        <Text style={[s.body, { marginBottom: 12 }]}>
+          {`How ${orgName}'s jobs will move through Zuper. Open the link below to view the live interactive flow diagram.`}
+        </Text>
+        <Link src={wizardUrl} style={s.flowLink}>
+          <Text style={s.flowLinkText}>View your Zuper workflow →</Text>
+          <Text style={s.flowLinkUrl}>{wizardUrl}</Text>
+        </Link>
         <Footer orgName={orgName} page={3} />
       </Page>
 
@@ -247,14 +246,20 @@ export function OnboardingReport({
               const rename = categoryRenames[cat.uid];
               const label = rename?.newName ?? cat.name;
               return (
-                <View key={cat.uid} style={s.subCard}>
+                <View key={cat.uid} style={rename ? s.requestCard : s.subCard}>
                   <View style={s.row}>
                     <View style={{ flex: 1 }}>
-                      <Text style={s.bodyDark}>{label}</Text>
-                      {rename && (
-                        <Text style={[s.small, { marginTop: 1 }]}>
-                          was <Text style={s.strike}>{rename.originalName}</Text>
-                        </Text>
+                      {rename ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={[s.bodyDark, { color: FAINT }]}>{rename.originalName}</Text>
+                          <Text style={[s.body, { marginHorizontal: 5 }]}>→</Text>
+                          <Text style={s.bodyDark}>{label}</Text>
+                          <View style={{ marginLeft: 6 }}>
+                            <Text style={[s.badge, s.amberBadge]}>Renamed</Text>
+                          </View>
+                        </View>
+                      ) : (
+                        <Text style={s.bodyDark}>{label}</Text>
                       )}
                     </View>
                     <Text style={s.small}>{cat.statuses.length} status{cat.statuses.length !== 1 ? 'es' : ''}</Text>
@@ -277,13 +282,19 @@ export function OnboardingReport({
                   const rename = statusRenames[st.uid];
                   const label = rename?.newName ?? st.name;
                   return (
-                    <View key={st.uid} style={[s.subCard, { paddingVertical: 5 }]}>
-                      <Text style={s.bodyDark}>
-                        {label}
-                        {rename && (
-                          <Text style={s.small}>{'  '}(was <Text style={s.strike}>{rename.originalName}</Text>)</Text>
-                        )}
-                      </Text>
+                    <View key={st.uid} style={rename ? [s.requestCard, { paddingVertical: 6 }] : [s.subCard, { paddingVertical: 5 }]}>
+                      {rename ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={[s.bodyDark, { color: FAINT }]}>{rename.originalName}</Text>
+                          <Text style={[s.body, { marginHorizontal: 5 }]}>→</Text>
+                          <Text style={s.bodyDark}>{label}</Text>
+                          <View style={{ marginLeft: 6 }}>
+                            <Text style={[s.badge, s.amberBadge]}>Renamed</Text>
+                          </View>
+                        </View>
+                      ) : (
+                        <Text style={s.bodyDark}>{label}</Text>
+                      )}
                     </View>
                   );
                 })}
@@ -401,9 +412,9 @@ export function OnboardingReport({
           <Text style={[s.body, { marginBottom: 14 }]}>No renames.</Text>
         ) : (
           renameSummary.map((r, i) => (
-            <View key={i} style={[s.renameRow]}>
-              <Text style={[s.badge, s.greyBadge, { marginRight: 6 }]}>{r.kind}</Text>
-              <Text style={s.bodyDark}>{r.original}</Text>
+            <View key={i} style={[s.requestCard, s.renameRow]}>
+              <Text style={[s.badge, s.amberBadge, { marginRight: 8 }]}>{r.kind}</Text>
+              <Text style={[s.bodyDark, { color: FAINT }]}>{r.original}</Text>
               <Text style={[s.body, { marginHorizontal: 6 }]}>→</Text>
               <Text style={s.bodyDark}>{r.updated}</Text>
             </View>

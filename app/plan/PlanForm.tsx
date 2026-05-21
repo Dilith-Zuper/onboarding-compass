@@ -6,6 +6,7 @@ import { CopyButton } from '@/components/admin/CopyButton';
 
 const DC_REGIONS = [
   { value: 'us-east-1',      label: 'US East (us-east-1)' },
+  { value: 'us-west-1c',     label: 'US West (us-west-1c)' },
   { value: 'eu-west-1',      label: 'Europe West (eu-west-1)' },
   { value: 'ap-south-1',     label: 'Asia Pacific South (ap-south-1)' },
   { value: 'ap-southeast-1', label: 'Asia Pacific SE (ap-southeast-1)' },

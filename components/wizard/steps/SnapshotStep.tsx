@@ -24,132 +24,135 @@ interface Props {
   onNext: () => void;
 }
 
-const TAB_ORDER = ['categories', 'statuses', 'checklists', 'notifications', 'workflows', 'cpq'];
+const MODULE_ORDER = ['categories', 'statuses', 'checklists', 'notifications', 'workflows', 'cpq'] as const;
 
-const TAB_LABELS: Record<string, string> = {
-  categories:    'Categories',
-  statuses:      'Statuses',
+const MODULE_LABELS: Record<string, string> = {
+  categories:    'Job categories',
+  statuses:      'Job statuses',
   checklists:    'Checklists',
   notifications: 'Notifications',
   workflows:     'Automations',
   cpq:           'Proposals',
 };
 
+const MODULE_DESCRIPTIONS: Record<string, string> = {
+  categories:    'The types of jobs your team handles in Zuper.',
+  statuses:      'The stages a job moves through from start to completion.',
+  checklists:    'Field checklists attached to each job type.',
+  notifications: 'Automated messages sent to customers and team members.',
+  workflows:     'Background automations running in your account.',
+  cpq:           'Your Good / Better / Best proposal structure per brand.',
+};
+
 export function SnapshotStep({ token, snapshot, answers, changeRequests, saEmail, isPreview, onChangeRequest, onSnapshotReady, onNext }: Props) {
-  const [activeTab, setActiveTab] = useState('categories');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [direction, setDirection] = useState<1 | -1>(1);
 
   if (!snapshot) {
     return <SnapshotPolling token={token} onReady={onSnapshotReady} />;
   }
 
-  const categories: ZuperCategory[]       = snapshot.categories    ?? [];
-  const checklists: ZuperChecklist[]      = snapshot.checklists    ?? [];
-  const notifications: ZuperNotification[]= snapshot.notifications ?? [];
-  const workflows: ZuperWorkflowSummary[] = snapshot.workflows     ?? [];
-  const selectedBrands: string[]           = Array.isArray(answers['brands']) ? answers['brands'] : [];
-
-  const counts: Record<string, number> = {
-    categories:    categories.length,
-    statuses:      categories.reduce((sum, c) => sum + c.statuses.length, 0),
-    checklists:    checklists.filter((c) => c.items.length > 0).length,
-    notifications: notifications.filter((n) => n.isActive).length,
-    workflows:     workflows.filter((w) => w.isActive).length,
-    cpq:           selectedBrands.filter((b) => b !== 'other').length,
-  };
+  const categories: ZuperCategory[]        = snapshot.categories    ?? [];
+  const checklists: ZuperChecklist[]       = snapshot.checklists    ?? [];
+  const notifications: ZuperNotification[] = snapshot.notifications ?? [];
+  const workflows: ZuperWorkflowSummary[]  = snapshot.workflows     ?? [];
+  const selectedBrands: string[]            = Array.isArray(answers['brands']) ? answers['brands'] : [];
 
   const moduleConfig = Object.fromEntries(CONFIG_MATRIX.map((m) => [m.module, m]));
+  const total = MODULE_ORDER.length;
+  const activeModule = MODULE_ORDER[activeIndex];
+  const isLast = activeIndex === total - 1;
+
+  function advance() {
+    setDirection(1);
+    if (isLast) {
+      onNext();
+    } else {
+      setActiveIndex((i) => i + 1);
+    }
+  }
+
+  function goBack() {
+    setDirection(-1);
+    setActiveIndex((i) => i - 1);
+  }
 
   return (
     <div className="max-w-[760px] mx-auto px-6 py-12 space-y-6">
+      {/* Header */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <p className="text-[11px] font-bold uppercase tracking-widest text-orange-500 mb-2">
-          Your account
+          Your account · {activeIndex + 1} of {total}
         </p>
         <h1 className="text-[32px] font-extrabold text-[#1A1A1A] leading-tight">
-          Here&apos;s how your account is set up
+          {MODULE_LABELS[activeModule]}
         </h1>
         <p className="text-sm text-gray-500 leading-relaxed mt-2">
-          This is your live Zuper configuration. Review each section and request changes below.
+          {MODULE_DESCRIPTIONS[activeModule]}
         </p>
       </motion.div>
 
-      {/* Tab bar */}
-      <div className="flex gap-1 bg-[#F5F3F0] rounded-xl p-1 overflow-x-auto">
-        {TAB_ORDER.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${
-              activeTab === tab
-                ? 'bg-white text-orange-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+      {/* Step dots */}
+      <div className="flex items-center gap-2">
+        {MODULE_ORDER.map((_, i) => (
+          <div
+            key={i}
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              i === activeIndex
+                ? 'w-6 bg-orange-500'
+                : i < activeIndex
+                ? 'w-3 bg-orange-300'
+                : 'w-3 bg-[#E5E2DC]'
             }`}
-          >
-            {TAB_LABELS[tab]}
-            {counts[tab] > 0 && (
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                activeTab === tab ? 'bg-orange-50 text-orange-600' : 'bg-gray-200 text-gray-500'
-              }`}>
-                {counts[tab]}
-              </span>
-            )}
-          </button>
+          />
         ))}
       </div>
 
       {/* Module content */}
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" custom={direction}>
         <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.2 }}
+          key={activeModule}
+          custom={direction}
+          initial={{ opacity: 0, x: direction * 32 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: direction * -32 }}
+          transition={{ duration: 0.25 }}
         >
           <div className="bg-white rounded-2xl border border-[#E5E2DC] p-6">
-            <h2 className="text-[17px] font-extrabold text-[#1A1A1A] leading-snug mb-5">
-              {TAB_LABELS[activeTab]}
-            </h2>
-
             <ModuleCard
-              config={moduleConfig[activeTab]}
+              config={moduleConfig[activeModule]}
               token={token}
-              changeRequest={changeRequests[activeTab] || ''}
-              onChangeRequest={(text) => onChangeRequest(activeTab, text)}
+              changeRequest={changeRequests[activeModule] || ''}
+              onChangeRequest={(text) => onChangeRequest(activeModule, text)}
             >
-              {activeTab === 'categories'    && <CategoriesModule    categories={categories} answers={answers} token={token} isPreview={isPreview} />}
-              {activeTab === 'statuses'      && <StatusesModule      categories={categories} answers={answers} token={token} isPreview={isPreview} />}
-              {activeTab === 'checklists'    && <ChecklistsModule    checklists={checklists} />}
-              {activeTab === 'notifications' && <NotificationsModule notifications={notifications} answers={answers} />}
-              {activeTab === 'workflows'     && <WorkflowsModule     workflows={workflows} />}
-              {activeTab === 'cpq'           && <CPQModule           selectedBrands={selectedBrands} saEmail={saEmail} />}
+              {activeModule === 'categories'    && <CategoriesModule    categories={categories} answers={answers} token={token} isPreview={isPreview} />}
+              {activeModule === 'statuses'      && <StatusesModule      categories={categories} answers={answers} token={token} isPreview={isPreview} />}
+              {activeModule === 'checklists'    && <ChecklistsModule    checklists={checklists} />}
+              {activeModule === 'notifications' && <NotificationsModule notifications={notifications} answers={answers} />}
+              {activeModule === 'workflows'     && <WorkflowsModule     workflows={workflows} />}
+              {activeModule === 'cpq'           && <CPQModule           selectedBrands={selectedBrands} saEmail={saEmail} />}
             </ModuleCard>
           </div>
         </motion.div>
       </AnimatePresence>
 
-      {/* Progress hint */}
-      <div className="flex items-center gap-2 text-xs text-gray-400">
-        {TAB_ORDER.map((tab) => (
+      {/* Navigation */}
+      <div className="flex items-center gap-3">
+        {activeIndex > 0 && (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`w-2 h-2 rounded-full transition-all ${
-              tab === activeTab ? 'bg-orange-500 w-4' : 'bg-[#E5E2DC] hover:bg-gray-300'
-            }`}
-          />
-        ))}
-        <span className="ml-1">
-          {TAB_ORDER.indexOf(activeTab) + 1} of {TAB_ORDER.length}
-        </span>
+            onClick={goBack}
+            className="h-12 px-6 rounded-full border border-[#E5E2DC] text-sm font-semibold text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
+          >
+            ← Back
+          </button>
+        )}
+        <button
+          onClick={advance}
+          className="flex-1 h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-full transition-colors text-base"
+        >
+          {isLast ? 'Review and submit →' : 'Continue →'}
+        </button>
       </div>
-
-      <button
-        onClick={onNext}
-        className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-full transition-colors text-base"
-      >
-        Review and submit →
-      </button>
     </div>
   );
 }

@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SignJWT } from 'jose';
 import { createClient } from '@/lib/supabase/server';
-import { Resend } from 'resend';
 import { cleanEnv } from '@/lib/utils';
 import { roleForEmail } from '@/lib/auth';
+import { sendEmail } from '@/lib/email/sender';
 
 const secret = new TextEncoder().encode(cleanEnv(process.env.ADMIN_JWT_SECRET));
-const resend = new Resend(cleanEnv(process.env.RESEND_API_KEY));
 const ALLOWED_DOMAIN = 'zuper.co';
 const OTP_TTL_MINUTES = 10;
 
@@ -106,16 +105,18 @@ export async function POST(req: NextRequest) {
     const appUrl = cleanEnv(process.env.NEXT_PUBLIC_APP_URL) || req.nextUrl.origin;
     const magicLink = `${appUrl}/admin/login?email=${encodeURIComponent(email)}&code=${otp}`;
 
-    try {
-      await resend.emails.send({
-        from: cleanEnv(process.env.RESEND_FROM_EMAIL) || 'onboarding@resend.dev',
-        to: [email],
-        subject: `${otp} is your Onboarding Compass code`,
-        html: otpEmailHtml(email, otp, magicLink),
-      });
-    } catch (err) {
-      console.error('Resend error:', err);
-      return NextResponse.json({ error: 'Failed to send email. Check Resend configuration.' }, { status: 500 });
+    const { error: sendError } = await sendEmail({
+      to: email,
+      subject: `${otp} is your Onboarding Compass code`,
+      html: otpEmailHtml(email, otp, magicLink),
+    });
+
+    if (sendError) {
+      console.error('OTP email error:', sendError.message);
+      return NextResponse.json(
+        { error: `Failed to send code: ${sendError.message}` },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ ok: true });
