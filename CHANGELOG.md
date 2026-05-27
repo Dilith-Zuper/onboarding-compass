@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+- `admin_otps` table missing `DISABLE ROW LEVEL SECURITY` in `schema.sql`; table was also absent from production Supabase, causing OTP login to fail with a database error.
+
 ### Added
 - Admin session detail: new "Customer renames" section shows a side-by-side table of original Zuper name vs customer-renamed value, with kind badge (Category / Status). `__rename:*` entries no longer appear raw in the responses list.
 - PDF onboarding report: renamed categories and statuses now render with an amber card background and "Renamed" badge, showing `original → new` inline. Section 8 renames summary also uses amber cards.
