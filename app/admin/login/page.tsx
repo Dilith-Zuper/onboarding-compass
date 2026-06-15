@@ -14,11 +14,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resendCountdown, setResendCountdown] = useState(0);
+  const [usePassword, setUsePassword] = useState(false);
+  const [password, setPassword] = useState('');
+  const [nextPath, setNextPath] = useState('/admin');
   const codeInputRef = useRef<HTMLInputElement>(null);
 
-  // Handle magic link params (?email=...&code=...)
+  // Handle ?next=... and magic link params (?email=...&code=...)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const nextParam = params.get('next');
+    if (nextParam) setNextPath(nextParam);
+
     const emailParam = params.get('email');
     const codeParam  = params.get('code');
     if (emailParam && codeParam && codeParam.length === 6) {
@@ -33,7 +39,7 @@ export default function LoginPage() {
         body: JSON.stringify({ action: 'verify', email: emailParam, code: codeParam }),
       }).then(async (res) => {
         if (res.ok) {
-          router.push('/admin');
+          router.push(nextParam || '/admin');
           router.refresh();
         } else {
           const d = await res.json();
@@ -82,9 +88,9 @@ export default function LoginPage() {
       return;
     }
 
-    router.push('/admin');
+    router.push(nextPath);
     router.refresh();
-  }, [code, email, router]);
+  }, [code, email, nextPath, router]);
 
   // Auto-submit when 6 digits entered
   useEffect(() => {
@@ -113,6 +119,29 @@ export default function LoginPage() {
     setStep('code');
     setResendCountdown(60);
     setLoading(false);
+  }
+
+  async function handleMasterLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    const res = await fetch('/api/admin/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'master_login', email, password }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data.error || 'Invalid email or password.');
+      setLoading(false);
+      return;
+    }
+
+    router.push(nextPath);
+    router.refresh();
   }
 
   async function handleResend() {
@@ -177,7 +206,7 @@ export default function LoginPage() {
                   </p>
                 </div>
 
-                <form onSubmit={handleRequestOtp} className="space-y-3">
+                <form onSubmit={usePassword ? handleMasterLogin : handleRequestOtp} className="space-y-3">
                   <div className="bg-white rounded-2xl border border-[#E5E2DC] px-5 py-4 space-y-1 focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-100 transition-all">
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">
                       Work email
@@ -193,6 +222,22 @@ export default function LoginPage() {
                     />
                   </div>
 
+                  {usePassword && (
+                    <div className="bg-white rounded-2xl border border-[#E5E2DC] px-5 py-4 space-y-1 focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-100 transition-all">
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        Password
+                      </label>
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        required
+                        className="w-full text-[#1A1A1A] text-base placeholder-gray-300 focus:outline-none bg-transparent"
+                      />
+                    </div>
+                  )}
+
                   {error && (
                     <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
                       <p className="text-xs text-red-600">{error}</p>
@@ -201,15 +246,23 @@ export default function LoginPage() {
 
                   <button
                     type="submit"
-                    disabled={loading || !email}
+                    disabled={loading || !email || (usePassword && !password)}
                     className="w-full h-12 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors text-base flex items-center justify-center gap-2"
                   >
                     {loading ? (
                       <>
                         <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                        Sending…
+                        {usePassword ? 'Signing in…' : 'Sending…'}
                       </>
-                    ) : 'Send code →'}
+                    ) : (usePassword ? 'Sign in →' : 'Send code →')}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setUsePassword((v) => !v); setError(''); setPassword(''); }}
+                    className="w-full text-center text-xs font-medium text-gray-400 hover:text-orange-500 transition-colors underline underline-offset-2"
+                  >
+                    {usePassword ? '← Use email code instead' : 'Sign in with a password instead'}
                   </button>
                 </form>
               </motion.div>

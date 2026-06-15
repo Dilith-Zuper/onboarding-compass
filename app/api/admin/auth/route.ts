@@ -9,6 +9,28 @@ const secret = new TextEncoder().encode(cleanEnv(process.env.ADMIN_JWT_SECRET));
 const ALLOWED_DOMAIN = 'zuper.co';
 const OTP_TTL_MINUTES = 10;
 
+// Master admin — signs in with a password instead of an emailed OTP.
+const MASTER_ADMIN_EMAIL = 'dilith@zuper.co';
+const MASTER_ADMIN_PASSWORD = 'dilith@zuper.co';
+
+async function issueSession(email: string): Promise<NextResponse> {
+  const token = await new SignJWT({ role: roleForEmail(email), email })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('24h')
+    .sign(secret);
+
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set('admin_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24,
+    path: '/',
+  });
+
+  return res;
+}
+
 function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -60,6 +82,18 @@ export async function POST(req: NextRequest) {
     const res = NextResponse.json({ ok: true });
     res.cookies.set('admin_token', '', { maxAge: 0, path: '/' });
     return res;
+  }
+
+  // ── Master admin login (password, no OTP) ──────────────────────────────────
+  if (action === 'master_login') {
+    const email = body.email?.trim().toLowerCase();
+    const password = body.password ?? '';
+
+    if (email !== MASTER_ADMIN_EMAIL || password !== MASTER_ADMIN_PASSWORD) {
+      return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
+    }
+
+    return issueSession(email);
   }
 
   // ── Request OTP ───────────────────────────────────────────────────────────
@@ -163,21 +197,7 @@ export async function POST(req: NextRequest) {
     await supabase.from('admin_otps').update({ used: true }).eq('id', record.id);
 
     // Issue JWT with email + role claim (super_admin if email is in SUPER_ADMIN_EMAILS)
-    const token = await new SignJWT({ role: roleForEmail(email), email })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setExpirationTime('24h')
-      .sign(secret);
-
-    const res = NextResponse.json({ ok: true });
-    res.cookies.set('admin_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24,
-      path: '/',
-    });
-
-    return res;
+    return issueSession(email);
   }
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

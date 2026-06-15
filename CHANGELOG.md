@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 - Daily Vercel Cron (`/api/cron/keepalive`, 12:00 UTC) requests an admin OTP for `dilith@zuper.co` to keep the Supabase project from auto-pausing on inactivity.
+- Master admin password login: `dilith@zuper.co` can sign in on `/admin/login` with a password, skipping the OTP step. All other `@zuper.co` accounts still use email OTP. `dilith@zuper.co` added to `SUPER_ADMIN_EMAILS`. Login page now honours `?next=` for redirect after sign-in (used by `/plan`).
 
 ### Fixed
 - `admin_otps` table missing `DISABLE ROW LEVEL SECURITY` in `schema.sql`; table was also absent from production Supabase, causing OTP login to fail with a database error.
