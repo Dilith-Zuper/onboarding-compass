@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+- Daily Vercel Cron (`/api/cron/keepalive`, 12:00 UTC) requests an admin OTP for `dilith@zuper.co` to keep the Supabase project from auto-pausing on inactivity.
+
 ### Fixed
 - `admin_otps` table missing `DISABLE ROW LEVEL SECURITY` in `schema.sql`; table was also absent from production Supabase, causing OTP login to fail with a database error.
 
