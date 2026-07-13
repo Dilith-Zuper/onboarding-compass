@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 - Admin login defaults to the password form; email OTP is now the secondary option ("Email me a code instead").
+- Added `PROJECT_CONTEXT.md` — repo-resident handoff document (state, decision log, lessons, security posture, backlog, E2E playbook) so anyone can pick the project up cold.
 
 ### Security
 - Admin sessions API no longer returns `zuper_api_key` to the browser (explicit column selects everywhere).

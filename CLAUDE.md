@@ -1,5 +1,6 @@
 # ZUPER ONBOARDING COMPASS — PROJECT GUIDE
 > Current-state documentation. Kept in sync with the code — if you change behavior, update this file in the same commit.
+> **New to this project? Read `PROJECT_CONTEXT.md` first** — it holds project state, the decision log, hard-won lessons, security posture, the prioritized backlog, and the E2E test playbook. This file covers architecture and house rules.
 > Product name: **Zuper Onboarding Compass** · codename `compass`
 > Production: https://compass-zuper.vercel.app (Vercel project `compass-zuper`) · GitHub: `Dilith-Zuper/onboarding-compass`
 
