@@ -2,16 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SignJWT } from 'jose';
 import { createClient } from '@/lib/supabase/server';
 import { cleanEnv } from '@/lib/utils';
-import { roleForEmail } from '@/lib/auth';
+import { roleForEmail, MASTER_ADMIN_EMAILS } from '@/lib/auth';
 import { sendEmail } from '@/lib/email/sender';
 
 const secret = new TextEncoder().encode(cleanEnv(process.env.ADMIN_JWT_SECRET));
 const ALLOWED_DOMAIN = 'zuper.co';
 const OTP_TTL_MINUTES = 10;
 
-// Master admin — signs in with a password instead of an emailed OTP.
-const MASTER_ADMIN_EMAIL = 'dilith@zuper.co';
-const MASTER_ADMIN_PASSWORD = 'dilith@zuper.co';
+// Master admins (see lib/auth.ts) sign in with a password instead of an emailed
+// OTP. Convention: password == their own email address.
 
 async function issueSession(email: string): Promise<NextResponse> {
   const token = await new SignJWT({ role: roleForEmail(email), email })
@@ -89,7 +88,7 @@ export async function POST(req: NextRequest) {
     const email = body.email?.trim().toLowerCase();
     const password = body.password ?? '';
 
-    if (email !== MASTER_ADMIN_EMAIL || password !== MASTER_ADMIN_PASSWORD) {
+    if (!email || !MASTER_ADMIN_EMAILS.includes(email) || password !== email) {
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
     }
 

@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- Three new super admins with password login (no OTP): `anandsub@zuper.co`, `balaje@zuper.co`, `ramya@zuper.co` — same convention as the existing master admin (password == their email). Master-admin list and baked-in super-admin roles now live in `lib/auth.ts` (`MASTER_ADMIN_EMAILS`), merged with the `SUPER_ADMIN_EMAILS` env var.
 - Daily Vercel Cron (`/api/cron/keepalive`, 12:00 UTC) requests an admin OTP for `dilith@zuper.co` to keep the Supabase project from auto-pausing on inactivity.
 - Master admin password login: `dilith@zuper.co` can sign in on `/admin/login` with a password, skipping the OTP step. All other `@zuper.co` accounts still use email OTP. `dilith@zuper.co` added to `SUPER_ADMIN_EMAILS`. Login page now honours `?next=` for redirect after sign-in (used by `/plan`).
 
