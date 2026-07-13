@@ -51,7 +51,17 @@ export function QuestionsStep({
 }: Props) {
   const [localAnswers, setLocalAnswers] = useState<Record<string, any>>(answers);
   const [pageIndex, setPageIndex] = useState(0);
-  const [otherText, setOtherText] = useState<Record<string, string>>({});
+  // "Other" free text is persisted as a reserved __other:<questionId> answer,
+  // so seed local state from any previously saved values (resume support).
+  const [otherText, setOtherText] = useState<Record<string, string>>(() => {
+    const seeded: Record<string, string> = {};
+    for (const [k, v] of Object.entries(answers)) {
+      if (k.startsWith('__other:') && typeof v === 'string') {
+        seeded[k.slice('__other:'.length)] = v;
+      }
+    }
+    return seeded;
+  });
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -216,7 +226,10 @@ export function QuestionsStep({
               effectiveOptions={getEffectiveOptions(q, localAnswers)}
               value={localAnswers[q.id]}
               otherValue={otherText[q.id] || ''}
-              onOtherChange={(v) => setOtherText((prev) => ({ ...prev, [q.id]: v }))}
+              onOtherChange={(v) => {
+                setOtherText((prev) => ({ ...prev, [q.id]: v }));
+                setAnswer(`__other:${q.id}`, v);
+              }}
               onChange={(val) => setAnswer(q.id, val)}
             />
           ))}

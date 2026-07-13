@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Session } from '@/types/supabase';
 import { formatDistanceToNow } from 'date-fns';
 import { CopyButton } from '@/components/admin/CopyButton';
+import { getAppUrl } from '@/lib/appUrl';
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   pending:     { label: 'Pending',     cls: 'bg-gray-100 text-gray-500' },
@@ -11,6 +12,16 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   live:        { label: 'Live',        cls: 'bg-green-50 text-green-700' },
 };
 
+const STEP_NAMES = ['Welcome', 'Questions', 'Flow', 'Account', 'Review'];
+
+function progressLabel(s: Session): string {
+  if (s.status === 'submitted' || s.status === 'live') return 'Completed';
+  if (s.status === 'pending') return 'Not opened';
+  if (s.last_seen_step === null || s.last_seen_step === undefined) return 'Opened';
+  const step = Math.min(s.last_seen_step, STEP_NAMES.length - 1);
+  return `${step + 1}/5 · ${STEP_NAMES[step]}`;
+}
+
 export default async function AdminDashboard() {
   const supabase = createClient();
   const { data: sessions } = await supabase
@@ -18,7 +29,7 @@ export default async function AdminDashboard() {
     .select('*')
     .order('created_at', { ascending: false });
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const appUrl = getAppUrl();
 
   return (
     <div className="space-y-6">
@@ -62,7 +73,7 @@ export default async function AdminDashboard() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[#F5F3F0]">
-                {['Organisation', 'Customer', 'SA', 'Status', 'Created', ''].map((h) => (
+                {['Organisation', 'Customer', 'SA', 'Status', 'Progress', 'Created', ''].map((h) => (
                   <th
                     key={h}
                     className="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-gray-400 first:rounded-tl-2xl last:rounded-tr-2xl"
@@ -93,6 +104,9 @@ export default async function AdminDashboard() {
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${badge.cls}`}>
                         {badge.label}
                       </span>
+                    </td>
+                    <td className="px-5 py-4 text-xs text-gray-500 whitespace-nowrap">
+                      {progressLabel(s)}
                     </td>
                     <td className="px-5 py-4 text-xs text-gray-400 whitespace-nowrap">
                       {formatDistanceToNow(new Date(s.created_at), { addSuffix: true })}

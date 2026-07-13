@@ -24,11 +24,22 @@ export async function POST(
   if (sessionError || !session) {
     return NextResponse.json({ error: 'Invalid token' }, { status: 404 });
   }
-  if (session.status === 'submitted') {
-    return NextResponse.json({ error: 'Already submitted' }, { status: 409 });
-  }
 
   const { customerName, answers, changeRequests } = await req.json();
+
+  // Atomically claim the submitted status — a double-click or duplicate
+  // request loses the race and gets a 409 instead of duplicate PDFs/emails.
+  const submittedAt = new Date().toISOString();
+  const { data: claimed } = await supabase
+    .from('sessions')
+    .update({ status: 'submitted', updated_at: submittedAt })
+    .eq('id', session.id)
+    .neq('status', 'submitted')
+    .select('id');
+
+  if (!claimed || claimed.length === 0) {
+    return NextResponse.json({ error: 'Already submitted' }, { status: 409 });
+  }
 
   // Upsert all responses
   const responseRows = Object.entries(answers as Record<string, any>).map(([question_id, answer]) => ({
@@ -64,7 +75,6 @@ export async function POST(
   const appUrl = cleanEnv(process.env.NEXT_PUBLIC_APP_URL) || req.nextUrl.origin;
 
   // Generate PDF
-  const submittedAt = new Date().toISOString();
   const wizardUrl = `${appUrl}/w/${params.token}`;
   let pdfUrl: string | null = null;
   let pdfBuffer: Buffer | null = null;
@@ -150,10 +160,12 @@ export async function POST(
     emailSent = true;
   }
 
-  // Create submission record
+  // Create submission record — keep a single row per session so a
+  // reopened-and-resubmitted session replaces its previous submission
   const selectedBrands = Array.isArray(answers['brands']) ? answers['brands'] : [];
   const selectedSuppliers = Array.isArray(answers['suppliers']) ? answers['suppliers'] : [];
 
+  await supabase.from('submissions').delete().eq('session_id', session.id);
   await supabase.from('submissions').insert({
     session_id: session.id,
     submitted_at: submittedAt,
@@ -162,11 +174,6 @@ export async function POST(
     pdf_url: pdfUrl,
     email_sent: emailSent,
   });
-
-  await supabase
-    .from('sessions')
-    .update({ status: 'submitted', updated_at: submittedAt })
-    .eq('id', session.id);
 
   return NextResponse.json({ ok: true });
 }

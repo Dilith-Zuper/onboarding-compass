@@ -1,10 +1,15 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { formatDistanceToNow, format } from 'date-fns';
+import { formatDistanceToNow, formatDistanceStrict, format } from 'date-fns';
 import { CopyButton } from '@/components/admin/CopyButton';
 import { RefreshSnapshotButton } from '@/components/admin/RefreshSnapshotButton';
 import { SendInviteButton } from '@/components/admin/SendInviteButton';
+import { ReopenButton } from '@/components/admin/ReopenButton';
+import { getAppUrl } from '@/lib/appUrl';
+import { computeWidgetMode } from '@/lib/questions';
+import { formatAnswer, getAnsweredBySection } from '@/lib/answers';
+import { QUESTIONS } from '@/lib/questions';
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   pending:     { label: 'Pending',     cls: 'bg-gray-100 text-gray-500' },
@@ -30,10 +35,10 @@ export default async function SessionDetailPage({ params }: { params: { id: stri
     { data: changeRequests },
     { data: submission },
   ] = await Promise.all([
-    supabase.from('snapshots').select('*').eq('session_id', params.id).order('created_at', { ascending: false }).limit(1).single(),
+    supabase.from('snapshots').select('*').eq('session_id', params.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('responses').select('*').eq('session_id', params.id).order('created_at', { ascending: true }),
     supabase.from('change_requests').select('*').eq('session_id', params.id).order('created_at', { ascending: true }),
-    supabase.from('submissions').select('*').eq('session_id', params.id).single(),
+    supabase.from('submissions').select('*').eq('session_id', params.id).order('submitted_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const badge = STATUS_BADGE[session.status] || STATUS_BADGE.pending;
@@ -49,9 +54,41 @@ export default async function SessionDetailPage({ params }: { params: { id: stri
       return [{ kind, originalName: val.originalName, newName: val.newName }];
     });
 
-  const visibleResponses = (responses ?? []).filter((r) => !r.question_id.startsWith('__rename:'));
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  // Rebuild the answers map from stored responses (includes __other:* keys)
+  const answersMap: Record<string, any> = {};
+  for (const r of responses ?? []) {
+    if (!r.question_id.startsWith('__rename:')) answersMap[r.question_id] = r.answer;
+  }
+
+  const answeredBySection = getAnsweredBySection(answersMap);
+  const answeredCount = answeredBySection.reduce((n, g) => n + g.items.length, 0);
+
+  // Key decisions for the SA's prep call
+  const widget = computeWidgetMode(answersMap);
+  const jobTypes: string[] = Array.isArray(answersMap['job_types']) ? answersMap['job_types'] : [];
+  const decisionOf = (id: string) => {
+    const q = QUESTIONS.find((qq) => qq.id === id);
+    return q ? formatAnswer(q, answersMap) : null;
+  };
+  const keyDecisions: Array<{ label: string; value: string }> = [
+    { label: 'Lead qualification', value: answersMap['has_lead_qualification'] === 'yes'
+        ? `Yes — ${decisionOf('qualification_platform') ?? 'platform TBD'}`
+        : answersMap['has_lead_qualification'] === 'no' ? 'No — direct to inspection' : '' },
+    { label: 'Booking widget', value: widget ? widget.mode : (answersMap['wants_booking_widget'] === 'no' ? 'Not wanted' : '') },
+    { label: 'Insurance work', value: jobTypes.length ? (jobTypes.includes('insurance_storm') ? 'Yes' : 'No — retail only') : '' },
+    { label: 'Zuper Connect', value: answersMap['uses_zuper_connect'] === 'yes'
+        ? (answersMap['migrate_number'] === 'yes' ? 'Activate — port existing number' : 'Activate — new number')
+        : (answersMap['uses_zuper_connect'] === 'later' ? 'Skip for now' : '') },
+    { label: 'Deposits', value: decisionOf('collects_deposit') ?? '' },
+    { label: 'Payment timing', value: decisionOf('payment_timing') ?? '' },
+    { label: 'Suppliers', value: decisionOf('suppliers') ?? '' },
+    { label: 'Brands', value: decisionOf('brands') ?? '' },
+  ].filter((d) => d.value);
+
+  const appUrl = getAppUrl();
   const customerLink = `${appUrl}/w/${session.unique_token}`;
+
+  const openedAt: string | null = session.first_opened_at ?? null;
 
   return (
     <div className="space-y-6">
@@ -76,10 +113,11 @@ export default async function SessionDetailPage({ params }: { params: { id: stri
           </span>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 pt-4 border-t border-[#E5E2DC]">
+        <div className="grid grid-cols-4 gap-4 pt-4 border-t border-[#E5E2DC]">
           <InfoField label="Customer" value={session.customer_email} />
           <InfoField label="SA / BA"  value={session.sa_email} />
           <InfoField label="Region"   value={session.dc_region} />
+          <InfoField label="Opened"   value={openedAt ? formatDistanceToNow(new Date(openedAt), { addSuffix: true }) : 'Not yet'} />
         </div>
 
         <div className="flex items-center gap-3 mt-4 pt-4 border-t border-[#E5E2DC]">
@@ -94,7 +132,10 @@ export default async function SessionDetailPage({ params }: { params: { id: stri
             Preview as customer →
           </a>
         </div>
-        <div className="flex items-center justify-end mt-3 pt-3 border-t border-[#E5E2DC]">
+        <div className="flex items-center justify-end gap-3 mt-3 pt-3 border-t border-[#E5E2DC]">
+          {(session.status === 'submitted' || session.status === 'live') && (
+            <ReopenButton sessionId={params.id} />
+          )}
           <SendInviteButton sessionId={params.id} />
         </div>
       </div>
@@ -162,35 +203,59 @@ export default async function SessionDetailPage({ params }: { params: { id: stri
         </Section>
       )}
 
-      {/* Responses */}
-      <Section title={`Discovery responses${visibleResponses.length ? ` · ${visibleResponses.length}` : ''}`}>
-        {visibleResponses.length > 0 ? (
-          <div className="space-y-2">
-            {visibleResponses.map((r) => {
-              const isUpload = r.question_id === 'proposal_sample_upload';
-              const upload = isUpload && r.answer && typeof r.answer === 'object' && !Array.isArray(r.answer)
-                ? r.answer as { url: string; fileName: string }
-                : null;
-              return (
-                <div key={r.id} className="flex gap-4 py-2 border-b border-[#E5E2DC] last:border-0 text-sm">
-                  <span className="font-mono text-xs text-gray-400 w-52 shrink-0 pt-0.5">{r.question_id}</span>
-                  {upload ? (
-                    <a
-                      href={upload.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-orange-500 hover:text-orange-600 font-semibold transition-colors"
-                    >
-                      {upload.fileName} →
-                    </a>
-                  ) : (
-                    <span className="text-[#1A1A1A]">
-                      {Array.isArray(r.answer) ? r.answer.join(', ') : String(r.answer)}
-                    </span>
-                  )}
+      {/* Call prep — the decisions that shape the SA session */}
+      {keyDecisions.length > 0 && (
+        <Section title="Call prep">
+          <div className="grid grid-cols-2 gap-3">
+            {keyDecisions.map((d) => (
+              <div key={d.label} className="bg-[#FAF9F7] rounded-xl border border-[#E5E2DC] px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{d.label}</p>
+                <p className="text-sm font-semibold text-[#1A1A1A] leading-snug">{d.value}</p>
+              </div>
+            ))}
+          </div>
+          {widget && (
+            <p className="text-xs text-gray-500 leading-relaxed mt-3">{widget.description}</p>
+          )}
+        </Section>
+      )}
+
+      {/* Answers grouped by section, with real question text and labels */}
+      <Section title={`Discovery answers${answeredCount ? ` · ${answeredCount}` : ''}`}>
+        {answeredCount > 0 ? (
+          <div className="space-y-5">
+            {answeredBySection.map(({ section, items }) => (
+              <div key={section.id}>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-orange-500 mb-2">
+                  {section.label}
+                </p>
+                <div className="rounded-xl border border-[#E5E2DC] overflow-hidden">
+                  {items.map(({ question, display }) => {
+                    const upload = question.type === 'file_upload'
+                      && answersMap[question.id] && typeof answersMap[question.id] === 'object'
+                      ? answersMap[question.id] as { url?: string; fileName?: string }
+                      : null;
+                    return (
+                      <div key={question.id} className="flex flex-col sm:flex-row sm:gap-4 gap-0.5 px-4 py-2.5 border-b border-[#E5E2DC] last:border-0 bg-white">
+                        <p className="text-xs text-gray-400 sm:w-64 shrink-0 leading-relaxed">{question.text}</p>
+                        {upload?.url ? (
+                          <a
+                            href={upload.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm font-semibold text-orange-500 hover:text-orange-600 transition-colors"
+                          >
+                            {upload.fileName || 'Uploaded file'} →
+                          </a>
+                        ) : (
+                          <p className="text-sm font-semibold text-[#1A1A1A] leading-snug">{display}</p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         ) : (
           <p className="text-sm text-gray-500">No responses yet.</p>
@@ -220,7 +285,12 @@ export default async function SessionDetailPage({ params }: { params: { id: stri
         <Section title="Submission">
           <div className="space-y-3">
             <InfoField label="Submitted"   value={format(new Date(submission.submitted_at), 'MMM d, yyyy HH:mm')} />
-            <InfoField label="Flow variant" value={submission.flow_variant || '—'} />
+            <InfoField
+              label="Time to complete"
+              value={openedAt
+                ? formatDistanceStrict(new Date(submission.submitted_at), new Date(openedAt))
+                : formatDistanceStrict(new Date(submission.submitted_at), new Date(session.created_at)) + ' (from invite)'}
+            />
             <InfoField label="Brands"       value={submission.selected_brands?.join(', ') || '—'} />
             <InfoField label="Suppliers"    value={submission.selected_vendors?.join(', ') || '—'} />
             {submission.pdf_url && (

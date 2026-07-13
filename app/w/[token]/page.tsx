@@ -48,10 +48,18 @@ export default async function WizardPage({
 
   // Mark in_progress (skipped in preview mode)
   if (!isPreview && session.status === 'pending') {
+    const now = new Date().toISOString();
     await supabase
       .from('sessions')
-      .update({ status: 'in_progress', updated_at: new Date().toISOString() })
+      .update({ status: 'in_progress', updated_at: now })
       .eq('id', session.id);
+    // Funnel timestamp — separate best-effort update so a missing column
+    // (pre-migration) can't block the status flip above
+    await supabase
+      .from('sessions')
+      .update({ first_opened_at: now })
+      .eq('id', session.id)
+      .is('first_opened_at', null);
   }
 
   const initialAnswers: Record<string, any> = {};

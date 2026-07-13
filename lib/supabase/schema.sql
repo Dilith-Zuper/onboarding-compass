@@ -10,6 +10,12 @@ CREATE TABLE sessions (
   unique_token TEXT UNIQUE NOT NULL DEFAULT encode(gen_random_bytes(24), 'hex'),
   has_zuper_connect BOOLEAN NOT NULL DEFAULT false,
   status TEXT NOT NULL DEFAULT 'pending',
+  -- Funnel instrumentation
+  first_opened_at TIMESTAMPTZ,
+  last_seen_step INTEGER,
+  -- Stalled-session reminders
+  reminder_sent_at TIMESTAMPTZ,
+  reminder_count INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -63,6 +69,7 @@ CREATE TABLE admin_otps (
   otp TEXT NOT NULL,
   expires_at TIMESTAMPTZ NOT NULL,
   used BOOLEAN DEFAULT false,
+  attempts INTEGER NOT NULL DEFAULT 0,   -- brute-force guard: code burned after 5 wrong guesses
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -72,3 +79,14 @@ ALTER TABLE responses DISABLE ROW LEVEL SECURITY;
 ALTER TABLE change_requests DISABLE ROW LEVEL SECURITY;
 ALTER TABLE submissions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_otps DISABLE ROW LEVEL SECURITY;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- MIGRATION for existing databases (run this block in the Supabase SQL editor
+-- if the tables above already exist):
+--
+-- ALTER TABLE sessions   ADD COLUMN IF NOT EXISTS first_opened_at TIMESTAMPTZ;
+-- ALTER TABLE sessions   ADD COLUMN IF NOT EXISTS last_seen_step INTEGER;
+-- ALTER TABLE sessions   ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
+-- ALTER TABLE sessions   ADD COLUMN IF NOT EXISTS reminder_count INTEGER NOT NULL DEFAULT 0;
+-- ALTER TABLE admin_otps ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0;
+-- ─────────────────────────────────────────────────────────────────────────────

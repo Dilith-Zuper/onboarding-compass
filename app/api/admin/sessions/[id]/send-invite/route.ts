@@ -1,25 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
 import { createClient } from '@/lib/supabase/server';
 import { cleanEnv } from '@/lib/utils';
+import { verifyAdminRequest } from '@/lib/auth';
 import { buildInviteEmail } from '@/lib/email/templates';
 import { sendEmail } from '@/lib/email/sender';
 
-const secret = new TextEncoder().encode(cleanEnv(process.env.ADMIN_JWT_SECRET));
-
-async function verifyAdmin(req: NextRequest) {
-  const token = req.cookies.get('admin_token')?.value;
-  if (!token) return false;
-  try {
-    await jwtVerify(token, secret);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  if (!(await verifyAdmin(req))) {
+  if (!(await verifyAdminRequest(req))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

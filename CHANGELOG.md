@@ -7,6 +7,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- SA call-prep digest on the admin session detail page: key-decisions grid (lead qualification, widget mode, insurance, Zuper Connect, deposits, payment timing, suppliers, brands) plus discovery answers grouped by section with real question text and option labels — replaces the raw `question_id` list.
+- Funnel instrumentation: `sessions.first_opened_at` and `sessions.last_seen_step` (reported by the wizard on every step change via `POST /api/customer/[token]/progress`). Admin dashboard gains a Progress column; session detail shows Opened and Time-to-complete. **Requires migration SQL — see bottom of `lib/supabase/schema.sql`.**
+- Stalled-session reminder cron (`/api/cron/reminders`, daily 14:30 UTC): emails customers whose sessions sit pending/in-progress for 3+ days, SA on CC, max 3 reminders per session, 3-day gap between reminders.
+- "Reopen for edits" button on submitted sessions: flips status back to in-progress so the customer can revise and resubmit; resubmission replaces the previous submission row.
+
+### Fixed
+- "Other" free-text answers are now persisted (reserved `__other:<questionId>` responses) and shown in the review step, SA email, PDF, and admin digest — previously typed text was silently discarded.
+- File-upload answers rendered as `[object Object]` in the review step and SA email; dynamic-option questions (e.g. deposit job types) showed raw values instead of labels. All answer rendering now goes through a shared formatter (`lib/answers.ts`).
+- Admin pages no longer fall back to `localhost:3000` for customer links when `NEXT_PUBLIC_APP_URL` is missing — they derive the URL from the request host.
+- Double-submit race: the submit route now claims the submitted status atomically, so a double-click can't produce duplicate PDFs/emails/submission rows.
+- Wizard autosave upserts atomically on the unique constraint instead of delete+insert (eliminates a duplicate-key race between rapid saves).
+
+### Security
+- Admin sessions API no longer returns `zuper_api_key` to the browser (explicit column selects everywhere).
+- Master-admin password moved to the `MASTER_ADMIN_PASSWORD` env var (falls back to the legacy password==email convention until set). Password and OTP comparisons are constant-time.
+- OTP brute-force guard: codes burn after 5 wrong guesses (**requires `admin_otps.attempts` column — see migration SQL**).
+- Snapshot force-refresh (`?force=true`) now requires an admin JWT; cron routes reject all requests when `CRON_SECRET` is unset.
+- Customer uploads: server-side extension allowlist, and storage paths use the session id instead of the wizard token (public file URLs no longer leak wizard access).
+
+### Added
 - Three new super admins with password login (no OTP): `anandsub@zuper.co`, `balaje@zuper.co`, `ramya@zuper.co` — same convention as the existing master admin (password == their email). Master-admin list and baked-in super-admin roles now live in `lib/auth.ts` (`MASTER_ADMIN_EMAILS`), merged with the `SUPER_ADMIN_EMAILS` env var.
 - Daily Vercel Cron (`/api/cron/keepalive`, 12:00 UTC) requests an admin OTP for `dilith@zuper.co` to keep the Supabase project from auto-pausing on inactivity.
 - Master admin password login: `dilith@zuper.co` can sign in on `/admin/login` with a password, skipping the OTP step. All other `@zuper.co` accounts still use email OTP. `dilith@zuper.co` added to `SUPER_ADMIN_EMAILS`. Login page now honours `?next=` for redirect after sign-in (used by `/plan`).

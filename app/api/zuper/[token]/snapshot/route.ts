@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { verifyAdminRequest } from '@/lib/auth';
 import { fetchZuperSnapshot } from '@/lib/zuper/api';
 
 export async function GET(
@@ -19,6 +20,13 @@ export async function GET(
   }
 
   const force = req.nextUrl.searchParams.get('force') === 'true';
+
+  // Force-refresh hits the customer's Zuper API and inserts a new snapshot
+  // row — admin only. The unauthenticated path below serves the cached
+  // snapshot, or performs the one first fetch if none exists yet.
+  if (force && !(await verifyAdminRequest(req))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   // Return cached snapshot unless force-refresh requested
   if (!force) {

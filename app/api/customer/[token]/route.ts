@@ -40,10 +40,17 @@ export async function GET(
 
   // Mark in_progress if still pending
   if (session.status === 'pending') {
+    const now = new Date().toISOString();
     await supabase
       .from('sessions')
-      .update({ status: 'in_progress', updated_at: new Date().toISOString() })
+      .update({ status: 'in_progress', updated_at: now })
       .eq('id', session.id);
+    // Best-effort funnel timestamp (non-fatal pre-migration)
+    await supabase
+      .from('sessions')
+      .update({ first_opened_at: now })
+      .eq('id', session.id)
+      .is('first_opened_at', null);
   }
 
   return NextResponse.json({

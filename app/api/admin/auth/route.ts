@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SignJWT } from 'jose';
+import { createHash, timingSafeEqual } from 'crypto';
 import { createClient } from '@/lib/supabase/server';
 import { cleanEnv } from '@/lib/utils';
 import { roleForEmail, MASTER_ADMIN_EMAILS } from '@/lib/auth';
@@ -8,9 +9,22 @@ import { sendEmail } from '@/lib/email/sender';
 const secret = new TextEncoder().encode(cleanEnv(process.env.ADMIN_JWT_SECRET));
 const ALLOWED_DOMAIN = 'zuper.co';
 const OTP_TTL_MINUTES = 10;
+const OTP_MAX_ATTEMPTS = 5;
 
-// Master admins (see lib/auth.ts) sign in with a password instead of an emailed
-// OTP. Convention: password == their own email address.
+// Constant-time string comparison (hash first so unequal lengths don't throw)
+function safeEqual(a: string, b: string): boolean {
+  const ha = createHash('sha256').update(a).digest();
+  const hb = createHash('sha256').update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
+
+// Master admins (see lib/auth.ts) sign in with a shared password instead of an
+// emailed OTP. The password comes from MASTER_ADMIN_PASSWORD; if that env var
+// is unset we fall back to the legacy convention (password == email) so
+// existing logins keep working until the var is configured in Vercel.
+function masterPasswordFor(email: string): string {
+  return cleanEnv(process.env.MASTER_ADMIN_PASSWORD) || email;
+}
 
 async function issueSession(email: string): Promise<NextResponse> {
   const token = await new SignJWT({ role: roleForEmail(email), email })
@@ -88,7 +102,7 @@ export async function POST(req: NextRequest) {
     const email = body.email?.trim().toLowerCase();
     const password = body.password ?? '';
 
-    if (!email || !MASTER_ADMIN_EMAILS.includes(email) || password !== email) {
+    if (!email || !password || !MASTER_ADMIN_EMAILS.includes(email) || !safeEqual(password, masterPasswordFor(email))) {
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
     }
 
@@ -167,7 +181,7 @@ export async function POST(req: NextRequest) {
 
     const { data: record, error: queryError } = await supabase
       .from('admin_otps')
-      .select('id, otp, expires_at, used')
+      .select('*') // includes attempts once the column exists; degrades gracefully before the migration runs
       .eq('email', email)
       .eq('used', false)
       .order('created_at', { ascending: false })
@@ -188,7 +202,16 @@ export async function POST(req: NextRequest) {
     if (new Date(record.expires_at) < new Date()) {
       return NextResponse.json({ error: 'Code expired. Request a new one.' }, { status: 400 });
     }
-    if (record.otp !== code) {
+    // Brute-force guard: burn the code after too many wrong guesses
+    if ((record.attempts ?? 0) >= OTP_MAX_ATTEMPTS) {
+      await supabase.from('admin_otps').update({ used: true }).eq('id', record.id);
+      return NextResponse.json({ error: 'Too many incorrect attempts. Request a new code.' }, { status: 429 });
+    }
+    if (!safeEqual(record.otp, code)) {
+      await supabase
+        .from('admin_otps')
+        .update({ attempts: (record.attempts ?? 0) + 1 })
+        .eq('id', record.id);
       return NextResponse.json({ error: 'Incorrect code. Check your email and try again.' }, { status: 400 });
     }
 

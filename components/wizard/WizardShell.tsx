@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { ProgressBar } from './gamification/ProgressBar';
 import { MilestoneToast, showToast } from './gamification/MilestoneToast';
@@ -63,10 +63,30 @@ export default function WizardShell({
   const [changeRequests, setChangeRequests] = useState<Record<string, string>>(initialChangeRequests);
   const [snapshot, setSnapshot] = useState<any>(initialSnapshot);
 
+  // Fire-and-forget funnel reporting (furthest step reached)
+  const reportProgress = useCallback(
+    (s: number) => {
+      if (isPreview) return;
+      fetch(`/api/customer/${token}/progress`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step: s }),
+      }).catch(() => {});
+    },
+    [token, isPreview]
+  );
+
+  // Report the entry step once on load (0, or 1 for returning customers)
+  useEffect(() => {
+    reportProgress(initialCustomerName ? 1 : 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const goTo = useCallback((nextStep: number) => {
     setStep(nextStep);
+    reportProgress(nextStep);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+  }, [reportProgress]);
 
   function handleWelcomeNext(name: string) {
     setCustomerName(name);

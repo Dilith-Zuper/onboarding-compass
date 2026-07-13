@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { QUESTIONS, computeWidgetMode } from '@/lib/questions';
+import { computeWidgetMode } from '@/lib/questions';
+import { getAnsweredQuestions } from '@/lib/answers';
 import { CONFIG_MATRIX } from '@/lib/configMatrix';
 interface Props {
   token: string;
@@ -21,25 +22,12 @@ export function ReviewStep({ token, orgName, customerName, saEmail, answers, cha
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Build human-readable Q&A list
-  const answeredQA = QUESTIONS
-    .filter((q) => answers[q.id] !== undefined && answers[q.id] !== null && answers[q.id] !== '')
-    .map((q) => {
-      const raw = answers[q.id];
-      let display: string;
-      if (Array.isArray(raw)) {
-        const optLabels = (q.options ?? []).reduce<Record<string, string>>((acc, o) => {
-          acc[o.value] = o.label; return acc;
-        }, {});
-        display = raw.filter((v) => v !== 'other').map((v) => optLabels[v] || v).join(', ');
-        if (raw.includes('other')) display += display ? ', + other' : 'Other';
-      } else if (q.options) {
-        display = q.options.find((o) => o.value === raw)?.label || String(raw);
-      } else {
-        display = String(raw);
-      }
-      return { question: q.text, answer: display };
-    });
+  // Build human-readable Q&A list (shared formatter handles labels,
+  // dynamic options, file uploads, and "Other" free text)
+  const answeredQA = getAnsweredQuestions(answers).map(({ question, display }) => ({
+    question: question.text,
+    answer: display,
+  }));
 
   const activeRequests = CONFIG_MATRIX.filter((m) => changeRequests[m.module]?.trim());
 

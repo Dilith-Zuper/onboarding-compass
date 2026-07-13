@@ -1,6 +1,30 @@
+import { jwtVerify } from 'jose';
+import type { NextRequest } from 'next/server';
 import { cleanEnv } from './utils';
 
 export type AdminRole = 'admin' | 'super_admin';
+
+const jwtSecret = new TextEncoder().encode(cleanEnv(process.env.ADMIN_JWT_SECRET));
+
+/**
+ * Verify the admin JWT cookie on an API request.
+ * Returns the payload ({ email, role }) or null when missing/invalid.
+ */
+export async function verifyAdminRequest(
+  req: NextRequest
+): Promise<{ email: string; role: AdminRole } | null> {
+  const token = req.cookies.get('admin_token')?.value;
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, jwtSecret);
+    return {
+      email: (payload.email as string) || '',
+      role: (payload.role as AdminRole) || 'admin',
+    };
+  } catch {
+    return null;
+  }
+}
 
 // Baked-in super admins — sign in with a password (== their email) on /admin/login,
 // skipping OTP. Always granted super_admin regardless of the env var.

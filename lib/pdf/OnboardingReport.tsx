@@ -1,5 +1,6 @@
 import { Document, Page, Text, View, Image, Link, StyleSheet } from '@react-pdf/renderer';
-import { QUESTIONS, SECTIONS, getEffectiveOptions } from '@/lib/questions';
+import { SECTIONS } from '@/lib/questions';
+import { getAnsweredQuestions } from '@/lib/answers';
 import { CONFIG_MATRIX } from '@/lib/configMatrix';
 import { renderMessagePlain } from '@/lib/notifications/templates';
 import type {
@@ -118,32 +119,13 @@ export function OnboardingReport({
     }
   }
 
-  // Discovery answers (skip reserved keys like __customer_name and __rename:*)
-  const answeredQuestions = QUESTIONS
-    .filter((q) => {
-      const a = answers[q.id];
-      if (a === undefined || a === null || a === '') return false;
-      if (Array.isArray(a) && a.length === 0) return false;
-      return true;
-    })
-    .map((q) => {
-      const raw = answers[q.id];
-      const opts = getEffectiveOptions(q, answers);
-      const labelByValue = new Map(opts.map((o) => [o.value, o.label]));
-
-      let display: string;
-      if (q.type === 'file_upload') {
-        display = raw && typeof raw === 'object' && raw.fileName ? `${raw.fileName} (uploaded)` : 'File uploaded';
-      } else if (Array.isArray(raw)) {
-        display = raw.filter((v) => v !== 'other').map((v) => labelByValue.get(v) || String(v)).join(', ');
-        if (raw.includes('other')) display += display ? ', + other' : 'Other';
-      } else if (opts.length > 0) {
-        display = labelByValue.get(raw) || String(raw);
-      } else {
-        display = String(raw);
-      }
-      return { section: q.section, question: q.text, answer: display };
-    });
+  // Discovery answers via shared formatter (labels, dynamic options,
+  // file uploads, "Other" free text). Reserved __ keys are skipped.
+  const answeredQuestions = getAnsweredQuestions(answers).map(({ question, display }) => ({
+    section: question.section,
+    question: question.text,
+    answer: display,
+  }));
 
   const answersBySection = SECTIONS
     .map((sec) => ({ section: sec, items: answeredQuestions.filter((qa) => qa.section === sec.id) }))

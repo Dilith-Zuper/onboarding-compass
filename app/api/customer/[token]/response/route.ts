@@ -43,16 +43,19 @@ export async function POST(
       .eq('session_id', session.id)
       .eq('question_id', question_id);
   } else {
-    // Upsert (delete + insert) to avoid race with unique constraint
-    await supabase
+    // Atomic upsert on the (session_id, question_id) unique constraint —
+    // two rapid saves can't race into a duplicate-key failure
+    const { error: upsertError } = await supabase
       .from('responses')
-      .delete()
-      .eq('session_id', session.id)
-      .eq('question_id', question_id);
+      .upsert(
+        { session_id: session.id, question_id, answer },
+        { onConflict: 'session_id,question_id' }
+      );
 
-    await supabase
-      .from('responses')
-      .insert({ session_id: session.id, question_id, answer });
+    if (upsertError) {
+      console.error('Response upsert failed:', upsertError);
+      return NextResponse.json({ error: 'Failed to save answer' }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ ok: true });

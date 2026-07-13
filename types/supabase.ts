@@ -10,6 +10,12 @@ export interface Session {
   status: 'pending' | 'in_progress' | 'submitted' | 'live';
   created_at: string;
   updated_at: string;
+  // Funnel instrumentation (nullable until migration runs)
+  first_opened_at?: string | null;
+  last_seen_step?: number | null;
+  // Stalled-session reminders
+  reminder_sent_at?: string | null;
+  reminder_count?: number | null;
 }
 
 export interface Snapshot {

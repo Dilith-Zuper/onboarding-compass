@@ -1,5 +1,5 @@
-import { QUESTIONS } from '@/lib/questions';
 import { CONFIG_MATRIX } from '@/lib/configMatrix';
+import { getAnsweredQuestions } from '@/lib/answers';
 
 // ── Customer invite / session link email ─────────────────────────────────────
 
@@ -56,6 +56,64 @@ export function buildInviteEmail({
   };
 }
 
+// ── Stalled-session reminder email ───────────────────────────────────────────
+
+export function buildReminderEmail({
+  orgName,
+  wizardLink,
+  saEmail,
+  started,
+}: {
+  orgName: string;
+  wizardLink: string;
+  saEmail: string;
+  /** true when the customer opened the wizard but didn't finish */
+  started: boolean;
+}) {
+  const heading = started ? 'Pick up where you left off' : 'Your Zuper setup is waiting';
+  const intro = started
+    ? `You started the onboarding questionnaire for <strong style="color:#1A1A1A;">${orgName}</strong> — your answers are saved, and it only takes a few more minutes to finish.`
+    : `Your <strong style="color:#1A1A1A;">${orgName}</strong> Zuper account is ready to be configured, but we still need about 10 minutes of your time to understand how your business works.`;
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#FAF9F7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<div style="max-width:520px;margin:48px auto;padding:0 16px;">
+  <div style="background:#1A1A1A;border-radius:12px 12px 0 0;padding:24px 32px;">
+    <p style="margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#F97316;">Zuper Onboarding</p>
+    <p style="margin:6px 0 0;font-size:20px;font-weight:800;color:#FFFFFF;">${heading}</p>
+  </div>
+  <div style="background:#FFFFFF;border:1px solid #E5E2DC;border-top:none;border-radius:0 0 12px 12px;padding:32px;">
+    <p style="margin:0 0 20px;font-size:14px;color:#6B7280;line-height:1.6;">
+      Hi there,<br/><br/>
+      ${intro}
+    </p>
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${wizardLink}" style="display:inline-block;background:#F97316;color:#FFFFFF;font-size:15px;font-weight:700;padding:16px 36px;border-radius:9999px;text-decoration:none;">
+        ${started ? 'Continue my onboarding →' : 'Start my onboarding →'}
+      </a>
+    </div>
+    <p style="margin:0;font-size:12px;color:#9CA3AF;line-height:1.5;">
+      This link is unique to your account. Do not share it.<br/>
+      Questions? Contact your SA at <a href="mailto:${saEmail}" style="color:#F97316;">${saEmail}</a>
+    </p>
+  </div>
+  <p style="text-align:center;font-size:11px;color:#9CA3AF;margin-top:20px;">
+    Zuper Onboarding Compass
+  </p>
+</div>
+</body>
+</html>`;
+
+  return {
+    subject: started
+      ? `Reminder: finish your Zuper onboarding — ${orgName}`
+      : `Reminder: your Zuper onboarding link — ${orgName}`,
+    html,
+  };
+}
+
 // ── SA notification email ────────────────────────────────────────────────────
 
 export function buildSAEmail({
@@ -77,21 +135,10 @@ export function buildSAEmail({
   sessionId: string;
   appUrl: string;
 }) {
-  const answeredQA = QUESTIONS
-    .filter((q) => answers[q.id] !== undefined && answers[q.id] !== '')
-    .map((q) => {
-      const raw = answers[q.id];
-      let display: string;
-      if (Array.isArray(raw)) {
-        const labels = (q.options ?? []).reduce<Record<string, string>>((acc, o) => { acc[o.value] = o.label; return acc; }, {});
-        display = raw.map((v) => labels[v] || v).join(', ');
-      } else if (q.options) {
-        display = q.options.find((o) => o.value === raw)?.label || raw;
-      } else {
-        display = String(raw);
-      }
-      return `<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E2DC;font-size:13px;color:#6B7280;">${q.text}</td><td style="padding:8px 12px;border-bottom:1px solid #E5E2DC;font-size:13px;color:#1A1A1A;font-weight:600;">${display}</td></tr>`;
-    }).join('');
+  const answeredQA = getAnsweredQuestions(answers)
+    .map(({ question, display }) =>
+      `<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E2DC;font-size:13px;color:#6B7280;">${question.text}</td><td style="padding:8px 12px;border-bottom:1px solid #E5E2DC;font-size:13px;color:#1A1A1A;font-weight:600;">${display}</td></tr>`
+    ).join('');
 
   const changeRows = CONFIG_MATRIX
     .filter((m) => changeRequests[m.module]?.trim())

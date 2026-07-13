@@ -7,8 +7,9 @@ import { cleanEnv } from '@/lib/utils';
 const KEEPALIVE_EMAIL = 'dilith@zuper.co';
 
 export async function GET(req: NextRequest) {
+  const cronSecret = cleanEnv(process.env.CRON_SECRET);
   const authHeader = req.headers.get('authorization');
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${cleanEnv(process.env.CRON_SECRET)}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
