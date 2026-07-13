@@ -46,13 +46,15 @@ export default async function WizardPage({
     .select('module, request_text')
     .eq('session_id', session.id);
 
-  // Mark in_progress (skipped in preview mode)
+  // Mark in_progress (skipped in preview mode). The status guard makes this
+  // idempotent — a stale read can never downgrade a submitted session.
   if (!isPreview && session.status === 'pending') {
     const now = new Date().toISOString();
     await supabase
       .from('sessions')
       .update({ status: 'in_progress', updated_at: now })
-      .eq('id', session.id);
+      .eq('id', session.id)
+      .eq('status', 'pending');
     // Funnel timestamp — separate best-effort update so a missing column
     // (pre-migration) can't block the status flip above
     await supabase

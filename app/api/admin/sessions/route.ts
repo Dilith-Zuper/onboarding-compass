@@ -49,8 +49,15 @@ export async function POST(req: NextRequest) {
   const appUrl = cleanEnv(process.env.NEXT_PUBLIC_APP_URL) || req.nextUrl.origin;
   const wizardLink = `${appUrl}/w/${data.unique_token}`;
 
-  // Fire snapshot fetch in background
-  fetch(`${appUrl}/api/zuper/${data.unique_token}/snapshot`, { method: 'GET' }).catch(() => {});
+  // Fetch the Zuper snapshot before responding (~4-5s). Fire-and-forget dies
+  // when the serverless function freezes after the response — observed in
+  // prod as sessions with no snapshot ever cached. Failure is non-fatal: the
+  // wizard's polling screen re-triggers the fetch as a fallback.
+  try {
+    await fetch(`${appUrl}/api/zuper/${data.unique_token}/snapshot`, { method: 'GET' });
+  } catch (err) {
+    console.error('Snapshot fetch at session creation failed:', err);
+  }
 
   // Send invite email to customer (non-fatal)
   const invite = buildInviteEmail({ orgName: org_name, wizardLink, saEmail: sa_email });

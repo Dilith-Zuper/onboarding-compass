@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+// Never cache: the wizard polls this for snapshot readiness and fresh status
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: { token: string } }
@@ -38,13 +41,16 @@ export async function GET(
     .select('module, request_text')
     .eq('session_id', session.id);
 
-  // Mark in_progress if still pending
+  // Mark in_progress if still pending. The .eq('status','pending') guard is
+  // load-bearing: it makes the transition idempotent at the DB level, so a
+  // stale read can never knock a submitted session back to in_progress.
   if (session.status === 'pending') {
     const now = new Date().toISOString();
     await supabase
       .from('sessions')
       .update({ status: 'in_progress', updated_at: now })
-      .eq('id', session.id);
+      .eq('id', session.id)
+      .eq('status', 'pending');
     // Best-effort funnel timestamp (non-fatal pre-migration)
     await supabase
       .from('sessions')

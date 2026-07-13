@@ -175,6 +175,10 @@ function SnapshotPolling({ token, onReady }: { token: string; onReady: (s: any) 
     let cancelled = false;
     const startedAt = Date.now();
 
+    // Self-healing: if the fetch at session creation died, this one call
+    // fetches + caches the snapshot (the endpoint is a no-op when cached).
+    fetch(`/api/zuper/${token}/snapshot`).catch(() => {});
+
     const messageRotation = setInterval(() => {
       setMsgIndex((i) => Math.min(i + 1, POLL_MESSAGES.length - 1));
     }, 3000);

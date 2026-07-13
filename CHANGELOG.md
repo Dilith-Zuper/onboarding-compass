@@ -13,11 +13,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - "Reopen for edits" button on submitted sessions: flips status back to in-progress so the customer can revise and resubmit; resubmission replaces the previous submission row.
 
 ### Fixed
+- **Stale-cache status corruption** (found by prod E2E test): Next.js 14's fetch data cache could serve stale Supabase reads inside route handlers, knocking a submitted session back to in-progress. All server Supabase calls now bypass the cache (`cache: 'no-store'`), customer GET routes are `force-dynamic`, and the pending→in-progress transition is guarded at the DB level (`.eq('status','pending')`).
+- **Snapshot never fetched** (found by prod E2E test): the fire-and-forget snapshot fetch at session creation dies when the serverless function freezes after responding. Session creation now awaits the fetch (~5s, non-fatal on error), and the wizard's polling screen triggers one self-healing fetch as a fallback.
 - "Other" free-text answers are now persisted (reserved `__other:<questionId>` responses) and shown in the review step, SA email, PDF, and admin digest — previously typed text was silently discarded.
 - File-upload answers rendered as `[object Object]` in the review step and SA email; dynamic-option questions (e.g. deposit job types) showed raw values instead of labels. All answer rendering now goes through a shared formatter (`lib/answers.ts`).
 - Admin pages no longer fall back to `localhost:3000` for customer links when `NEXT_PUBLIC_APP_URL` is missing — they derive the URL from the request host.
 - Double-submit race: the submit route now claims the submitted status atomically, so a double-click can't produce duplicate PDFs/emails/submission rows.
 - Wizard autosave upserts atomically on the unique constraint instead of delete+insert (eliminates a duplicate-key race between rapid saves).
+
+### Changed
+- Admin login defaults to the password form; email OTP is now the secondary option ("Email me a code instead").
 
 ### Security
 - Admin sessions API no longer returns `zuper_api_key` to the browser (explicit column selects everywhere).

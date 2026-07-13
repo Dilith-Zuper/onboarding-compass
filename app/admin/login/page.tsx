@@ -14,7 +14,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resendCountdown, setResendCountdown] = useState(0);
-  const [usePassword, setUsePassword] = useState(false);
+  // Password login is the default (beta); email OTP is the fallback
+  const [usePassword, setUsePassword] = useState(true);
   const [password, setPassword] = useState('');
   const [nextPath, setNextPath] = useState('/admin');
   const codeInputRef = useRef<HTMLInputElement>(null);
@@ -262,7 +263,7 @@ export default function LoginPage() {
                     onClick={() => { setUsePassword((v) => !v); setError(''); setPassword(''); }}
                     className="w-full text-center text-xs font-medium text-gray-400 hover:text-orange-500 transition-colors underline underline-offset-2"
                   >
-                    {usePassword ? '← Use email code instead' : 'Sign in with a password instead'}
+                    {usePassword ? 'Email me a code instead' : '← Sign in with a password'}
                   </button>
                 </form>
               </motion.div>

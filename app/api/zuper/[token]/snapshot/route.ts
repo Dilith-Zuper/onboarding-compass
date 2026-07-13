@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { verifyAdminRequest } from '@/lib/auth';
 import { fetchZuperSnapshot } from '@/lib/zuper/api';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { token: string } }
