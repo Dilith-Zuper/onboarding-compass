@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 - **Stale-cache status corruption** (found by prod E2E test): Next.js 14's fetch data cache could serve stale Supabase reads inside route handlers, knocking a submitted session back to in-progress. All server Supabase calls now bypass the cache (`cache: 'no-store'`), customer GET routes are `force-dynamic`, and the pending→in-progress transition is guarded at the DB level (`.eq('status','pending')`).
+- **Invite email silently never sent** (found by prod E2E test): the invite send at session creation was fire-and-forget and died on serverless freeze — now awaited (non-fatal on error).
 - **Snapshot never fetched** (found by prod E2E test): the fire-and-forget snapshot fetch at session creation dies when the serverless function freezes after responding. Session creation now awaits the fetch (~5s, non-fatal on error), and the wizard's polling screen triggers one self-healing fetch as a fallback.
 - "Other" free-text answers are now persisted (reserved `__other:<questionId>` responses) and shown in the review step, SA email, PDF, and admin digest — previously typed text was silently discarded.
 - File-upload answers rendered as `[object Object]` in the review step and SA email; dynamic-option questions (e.g. deposit job types) showed raw values instead of labels. All answer rendering now goes through a shared formatter (`lib/answers.ts`).

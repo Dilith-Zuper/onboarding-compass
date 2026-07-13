@@ -59,11 +59,16 @@ export async function POST(req: NextRequest) {
     console.error('Snapshot fetch at session creation failed:', err);
   }
 
-  // Send invite email to customer (non-fatal)
+  // Send invite email to customer. Must be awaited — fire-and-forget work
+  // dies when the serverless function freezes after responding (confirmed in
+  // prod: invites silently never sent). Failure is still non-fatal.
   const invite = buildInviteEmail({ orgName: org_name, wizardLink, saEmail: sa_email });
-  sendEmail({ to: customer_email, subject: invite.subject, html: invite.html })
-    .then(({ error }) => { if (error) console.error('Invite email failed:', error.message); })
-    .catch((err) => console.error('Invite email failed:', err));
+  try {
+    const { error: inviteError } = await sendEmail({ to: customer_email, subject: invite.subject, html: invite.html });
+    if (inviteError) console.error('Invite email failed:', inviteError.message);
+  } catch (err) {
+    console.error('Invite email failed:', err);
+  }
 
   return NextResponse.json({ session: data, wizardLink }, { status: 201 });
 }
