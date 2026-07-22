@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+- Vercel project transferred from dilith-zuper's personal account to the company team `team_o1jeGuh2SAY6UINkoM0iGxoy` (onboarding@zuper.co); PROJECT_CONTEXT.md infra table updated.
+
 ### Added
 - Flow stage click-through detail (progressive disclosure): clicking a stage node now shows that stage's real status pipeline from the customer's live account — keyword-matched category (`lib/flow/stageDetail.ts`), statuses as ordered chips with color dots and Sig/Timer badges, customer renames respected, graceful null when no category matches. The Lead Qualification node additionally explains the answer / no-answer / 3-attempts-then-cold-lead branches.
 - Curated plain-English descriptions for all 34 GA (golden account) workflows (`lib/zuper/workflowDescriptions.ts`), shown in the wizard's automations module and the PDF report. Matching is name-based (punctuation-insensitive); curated copy wins over the Zuper description, unknown workflows fall back to Zuper's own description.

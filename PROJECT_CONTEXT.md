@@ -1,6 +1,6 @@
 # PROJECT CONTEXT — ZUPER ONBOARDING COMPASS
 > **Read this first.** This is the handoff document: everything a new engineer (or a fresh Claude session) needs to continue from exactly where the project stands. `CLAUDE.md` is the day-to-day operating guide (architecture, house rules); this file is state, history, decisions, and backlog.
-> Last updated: **2026-07-13** — after the full-app review, security/data-integrity fix batch, and a 30-check production E2E test.
+> Last updated: **2026-07-22** — Vercel project moved to the company team (infra table §2 updated). Previous update 2026-07-13: full-app review, security/data-integrity fix batch, and a 30-check production E2E test.
 
 ---
 
@@ -22,7 +22,7 @@ Owner: Dilith Dinesh (dilith@zuper.co), Customer Product Management.
 
 | Thing | Where | Notes |
 |---|---|---|
-| Production | https://compass-zuper.vercel.app | Vercel project `compass-zuper`, team `dilith-zupers-projects` |
+| Production | https://compass-zuper.vercel.app | Vercel project `compass-zuper`, company team `team_o1jeGuh2SAY6UINkoM0iGxoy` (owner onboarding@zuper.co). Transferred 2026-07-22 from `dilith-zupers-projects` — env vars/crons/domains moved intact. CLI deploys now need a team-member login; verify the team's GitHub integration sees the repo so auto-deploy keeps working |
 | GitHub | github.com/Dilith-Zuper/onboarding-compass | **Public repo** — see Security notes §6. Git → Vercel auto-deploy connected 2026-07-13 (before that, every deploy was manual `vercel --prod`) |
 | Database | Supabase (free tier) | Schema + migration block: `lib/supabase/schema.sql`. All migrations through 2026-07-13 have been run. RLS disabled (service-role key server-side only) |
 | Storage buckets | Supabase | `reports` (PDFs), `customer-uploads` (proposal templates) — both public |
