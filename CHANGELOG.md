@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- Curated plain-English descriptions for all 34 GA (golden account) workflows (`lib/zuper/workflowDescriptions.ts`), shown in the wizard's automations module and the PDF report. Matching is name-based (punctuation-insensitive); curated copy wins over the Zuper description, unknown workflows fall back to Zuper's own description.
+- Number-porting questions when Zuper Connect is enabled and the customer keeps their existing number: the number itself and the current provider, with copy explaining we'll port it to Zuper. The flowchart's Zuper Connect node description reflects the porting choice.
+- A2P 10DLC registration question when Zuper Connect is activated — links to the Microsoft Forms registration form (new `link` field on questions, rendered as a button) and asks the customer to confirm submission.
 - SA call-prep digest on the admin session detail page: key-decisions grid (lead qualification, widget mode, insurance, Zuper Connect, deposits, payment timing, suppliers, brands) plus discovery answers grouped by section with real question text and option labels — replaces the raw `question_id` list.
 - Funnel instrumentation: `sessions.first_opened_at` and `sessions.last_seen_step` (reported by the wizard on every step change via `POST /api/customer/[token]/progress`). Admin dashboard gains a Progress column; session detail shows Opened and Time-to-complete. **Requires migration SQL — see bottom of `lib/supabase/schema.sql`.**
 - Stalled-session reminder cron (`/api/cron/reminders`, daily 14:30 UTC): emails customers whose sessions sit pending/in-progress for 3+ days, SA on CC, max 3 reminders per session, 3-day gap between reminders.
@@ -23,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Wizard autosave upserts atomically on the unique constraint instead of delete+insert (eliminates a duplicate-key race between rapid saves).
 
 ### Changed
+- Flowchart refinement: same-row connections (Zuper Connect, website booking, suppliers) now route side-to-side instead of looping top-to-bottom, edges use rounded smoothstep paths with subtler strokes, node cards get a soft shadow, and fan-out spacing is wider so side nodes don't crowd. Zuper Connect is now drawn as an inbound entry channel (calls & texts flow into lead creation).
 - Admin login defaults to the password form; email OTP is now the secondary option ("Email me a code instead").
 - Added `PROJECT_CONTEXT.md` — repo-resident handoff document (state, decision log, lessons, security posture, backlog, E2E playbook) so anyone can pick the project up cold.
 

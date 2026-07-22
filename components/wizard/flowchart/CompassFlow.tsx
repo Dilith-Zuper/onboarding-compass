@@ -65,19 +65,31 @@ export function CompassFlow({ answers, onNodeClick, className }: Props) {
       },
     }));
 
+  // Same-row edges connect side-to-side; everything else flows top-to-bottom.
+  const posById = new Map(variant.nodes.map((n) => [n.id, n.position]));
   const rfEdges: Edge[] = variant.edges
     .filter((e) => revealedIds.has(e.from) && revealedIds.has(e.to))
-    .map((e) => ({
-      id: `${e.from}-${e.to}`,
-      source: e.from,
-      target: e.to,
-      label: e.label,
-      labelStyle: { fontSize: 10, fill: '#9CA3AF', fontWeight: 600 },
-      labelBgStyle: { fill: '#FAF9F7', fillOpacity: 0.9 },
-      labelBgPadding: [4, 6] as [number, number],
-      style: { stroke: '#E5E2DC', strokeWidth: 2 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#E5E2DC', width: 16, height: 16 },
-    }));
+    .map((e) => {
+      const from = posById.get(e.from);
+      const to = posById.get(e.to);
+      const sameRow = !!from && !!to && Math.abs(from.y - to.y) < 40;
+      const targetIsRight = !!from && !!to && to.x > from.x;
+      return {
+        id: `${e.from}-${e.to}`,
+        source: e.from,
+        target: e.to,
+        sourceHandle: sameRow ? (targetIsRight ? 's-right' : 's-left') : 's-bottom',
+        targetHandle: sameRow ? (targetIsRight ? 't-left' : 't-right') : 't-top',
+        type: 'smoothstep' as const,
+        pathOptions: { borderRadius: 24 },
+        label: e.label,
+        labelStyle: { fontSize: 10, fill: '#9CA3AF', fontWeight: 600 },
+        labelBgStyle: { fill: '#FAF9F7', fillOpacity: 0.9 },
+        labelBgPadding: [4, 6] as [number, number],
+        style: { stroke: '#DBD7CF', strokeWidth: 1.5 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#C9C4BA', width: 18, height: 18 },
+      };
+    });
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {

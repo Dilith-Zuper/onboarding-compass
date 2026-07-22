@@ -1,4 +1,5 @@
 import type { ZuperWorkflowSummary } from '@/lib/zuper/transformer';
+import { describeWorkflow } from '@/lib/zuper/workflowDescriptions';
 
 interface Props {
   workflows: ZuperWorkflowSummary[];
@@ -19,14 +20,15 @@ export function WorkflowsModule({ workflows }: Props) {
 }
 
 function WorkflowCard({ wf }: { wf: ZuperWorkflowSummary }) {
+  const description = describeWorkflow(wf);
   return (
     <div className="bg-white rounded-2xl border border-[#E5E2DC] p-5">
       <p className="text-sm font-bold text-[#1A1A1A]">{wf.name}</p>
       <p className="text-xs text-gray-400 mt-0.5">
         Trigger: {wf.trigger} · {wf.nodeCount} node{wf.nodeCount !== 1 ? 's' : ''}
       </p>
-      {wf.description ? (
-        <p className="text-sm text-gray-500 leading-relaxed mt-3 whitespace-pre-line">{wf.description}</p>
+      {description ? (
+        <p className="text-sm text-gray-500 leading-relaxed mt-3 whitespace-pre-line">{description}</p>
       ) : (
         <p className="text-xs text-gray-400 italic mt-3">No description set in Zuper for this automation.</p>
       )}

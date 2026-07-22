@@ -50,15 +50,16 @@ export function CompassNode({ data, selected }: NodeProps<CompassNode>) {
     <div
       className={`relative rounded-xl min-w-[160px] max-w-[240px] text-center transition-all select-none
         ${isDashed ? 'border-2 border-dashed' : 'border-2'}
-        ${selected ? 'ring-2 ring-orange-400 ring-offset-2' : ''}
+        ${selected ? 'ring-2 ring-orange-400 ring-offset-2' : 'shadow-[0_1px_3px_rgba(26,26,26,0.06)]'}
       `}
       style={{ background: s.bg, borderColor: selected ? '#F97316' : s.border }}
     >
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!w-2.5 !h-2.5 !bg-[#E5E2DC] !border-gray-300"
-      />
+      {/* Invisible connection points — edges pick the side that reads cleanest */}
+      <Handle id="t-top" type="target" position={Position.Top} className="!w-1 !h-1 !min-w-0 !min-h-0 !border-0 !opacity-0" />
+      <Handle id="t-left" type="target" position={Position.Left} className="!w-1 !h-1 !min-w-0 !min-h-0 !border-0 !opacity-0" />
+      <Handle id="t-right" type="target" position={Position.Right} className="!w-1 !h-1 !min-w-0 !min-h-0 !border-0 !opacity-0" />
+      <Handle id="s-left" type="source" position={Position.Left} className="!w-1 !h-1 !min-w-0 !min-h-0 !border-0 !opacity-0" />
+      <Handle id="s-right" type="source" position={Position.Right} className="!w-1 !h-1 !min-w-0 !min-h-0 !border-0 !opacity-0" />
 
       <div className="px-3 py-3">
         <p className={`text-xs font-bold leading-tight ${s.textCls}`}>{data.label}</p>
@@ -114,11 +115,7 @@ export function CompassNode({ data, selected }: NodeProps<CompassNode>) {
         )}
       </div>
 
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="!w-2.5 !h-2.5 !bg-[#E5E2DC] !border-gray-300"
-      />
+      <Handle id="s-bottom" type="source" position={Position.Bottom} className="!w-1 !h-1 !min-w-0 !min-h-0 !border-0 !opacity-0" />
     </div>
   );
 }

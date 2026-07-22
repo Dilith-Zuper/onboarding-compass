@@ -9,6 +9,7 @@ import type {
   ZuperNotification,
   ZuperWorkflowSummary,
 } from '@/lib/zuper/transformer';
+import { describeWorkflow } from '@/lib/zuper/workflowDescriptions';
 
 const ORANGE = '#F97316';
 const DARK   = '#1A1A1A';
@@ -347,19 +348,22 @@ export function OnboardingReport({
         {activeWorkflows.length === 0 ? (
           <Text style={s.body}>No active automations.</Text>
         ) : (
-          activeWorkflows.map((wf) => (
-            <View key={wf.uid} style={s.card} wrap={false}>
-              <Text style={s.bodyDark}>{wf.name}</Text>
-              <Text style={[s.small, { marginTop: 1 }]}>
-                Trigger: {wf.trigger} · {wf.nodeCount} node{wf.nodeCount !== 1 ? 's' : ''}
-              </Text>
-              {wf.description ? (
-                <Text style={[s.body, { marginTop: 4 }]}>{wf.description}</Text>
-              ) : (
-                <Text style={[s.small, { marginTop: 4, fontStyle: 'italic' }]}>No description set in Zuper.</Text>
-              )}
-            </View>
-          ))
+          activeWorkflows.map((wf) => {
+            const wfDescription = describeWorkflow(wf);
+            return (
+              <View key={wf.uid} style={s.card} wrap={false}>
+                <Text style={s.bodyDark}>{wf.name}</Text>
+                <Text style={[s.small, { marginTop: 1 }]}>
+                  Trigger: {wf.trigger} · {wf.nodeCount} node{wf.nodeCount !== 1 ? 's' : ''}
+                </Text>
+                {wfDescription ? (
+                  <Text style={[s.body, { marginTop: 4 }]}>{wfDescription}</Text>
+                ) : (
+                  <Text style={[s.small, { marginTop: 4, fontStyle: 'italic' }]}>No description set in Zuper.</Text>
+                )}
+              </View>
+            );
+          })
         )}
         <Footer orgName={orgName} page={7} />
       </Page>

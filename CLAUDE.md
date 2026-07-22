@@ -64,6 +64,7 @@ lib/
   flow/variants.ts        answers → flowchart nodes/edges
   notifications/derive.ts answers → derived notification list (flow badges + module tabs)
   zuper/api.ts            all Zuper API calls (server-only)
+  zuper/workflowDescriptions.ts  curated plain-English copy for GA workflows (name-keyed, punctuation-insensitive)
   email/sender.ts         nodemailer; templates.ts builds invite/reminder/SA/customer HTML
   pdf/OnboardingReport.tsx
   appUrl.ts               server-only base URL (env → request host, never localhost)
@@ -99,7 +100,7 @@ Responses live in one table keyed by `(session_id, question_id)`. Reserved keys 
 ## 6. CUSTOMER JOURNEY (wizard steps 0–4)
 
 0. **Welcome** — name capture (persisted as `__customer_name`; returning customers skip to 1)
-1. **Questions** — from `lib/questions.ts`, grouped by section, 6 per page, pages never cross sections. Per-question autosave (500ms debounce) with Saving/Saved indicator. Conditional visibility (`condition`/`conditions` AND logic, `requiresSessionFlag` for Zuper Connect), dynamic subtexts, `optionsFromQuestion`.
+1. **Questions** — from `lib/questions.ts`, grouped by section, 6 per page, pages never cross sections. Per-question autosave (500ms debounce) with Saving/Saved indicator. Conditional visibility (`condition`/`conditions` AND logic, `requiresSessionFlag` for Zuper Connect), dynamic subtexts, `optionsFromQuestion`, optional `link` field rendered as a button (used for the A2P 10DLC registration form). Zuper Connect follow-ups: number porting (number + current provider) when keeping an existing number, and 10DLC form confirmation whenever Connect is activated.
 2. **Flow** — `computeFlowVariant(answers)`: lead sources fan into Lead/Customer created → optional HubSpot or Lead Qualification → Inspection → optional Insurance claim → CPQ (measurement providers feed in) → Proposal → Material ordering (suppliers fan out) → Production → Job complete → Invoicing & closeout. Zuper Connect parallel. Notification badges per node from `lib/notifications/derive.ts`.
 3. **Account snapshot** — 6 modules (categories, statuses, checklists, notifications, workflows, CPQ) over the cached Supabase snapshot; inline rename on categories/statuses; per-module change-request textarea (debounced autosave); polling UI if snapshot not yet fetched.
 4. **Review & submit** — labeled Q&A, widget-mode callout, change requests, submit → atomic status claim (double-click safe) → PDF → Supabase Storage `reports` bucket → emails (SA digest to onboarding@zuper.co, CC SA, PDF attached; confirmation to customer) → single submission row (resubmits replace it).

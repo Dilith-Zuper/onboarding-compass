@@ -21,6 +21,8 @@ export interface Question {
     text: string;
   }>;
   type: QuestionType;
+  /** External link rendered as a button under the subtext (e.g. a form to fill). */
+  link?: { url: string; label: string };
   options?: { value: string; label: string; icon?: string }[];
   /** If set, options are built from another question's selected answer values */
   optionsFromQuestion?: string;
@@ -194,6 +196,57 @@ export const QUESTIONS: Question[] = [
     ],
     condition: { questionId: 'uses_zuper_connect', answer: 'yes' },
     requiresSessionFlag: 'hasZuperConnect',
+    required: true,
+  },
+
+  {
+    id: 'existing_number',
+    section: 'phone',
+    text: 'What\'s the business number you\'d like to keep?',
+    subtext:
+      'Include the area code — e.g. (555) 123-4567. We\'ll port this number over to Zuper so customers keep reaching you on the same line.',
+    type: 'single_line',
+    conditions: [
+      { questionId: 'uses_zuper_connect', answer: 'yes' },
+      { questionId: 'migrate_number', answer: 'yes' },
+    ],
+    requiresSessionFlag: 'hasZuperConnect',
+    required: true,
+  },
+
+  {
+    id: 'existing_number_provider',
+    section: 'phone',
+    text: 'Who is your current provider for that number?',
+    subtext:
+      'E.g. Verizon, AT&T, RingCentral, Grasshopper, Twilio. We need this to start the porting process with them.',
+    type: 'single_line',
+    conditions: [
+      { questionId: 'uses_zuper_connect', answer: 'yes' },
+      { questionId: 'migrate_number', answer: 'yes' },
+    ],
+    requiresSessionFlag: 'hasZuperConnect',
+    required: true,
+  },
+
+  {
+    id: 'tendlc_registration',
+    section: 'phone',
+    text: 'Have you submitted the 10DLC texting registration form?',
+    subtext:
+      'US carriers require every business texting customers to register their brand (A2P 10DLC). Without it, texts from your Zuper Connect number can be blocked. It takes about 5 minutes — please fill out the form below.',
+    link: {
+      url: 'https://forms.office.com/Pages/ResponsePage.aspx?id=zVrY5KOpT0-uUBhlmXUHywhxHbVEaHdCtTiq7y4_GDZURUxPME1KRFEyQk5ZU0VRWjIxRjA5R0k5VS4u',
+      label: 'Open the 10DLC registration form',
+    },
+    type: 'single_select',
+    options: [
+      { value: 'submitted', label: 'Done — I\'ve submitted the form' },
+      { value: 'later',     label: 'I\'ll complete it before our onboarding call' },
+    ],
+    condition: { questionId: 'uses_zuper_connect', answer: 'yes' },
+    requiresSessionFlag: 'hasZuperConnect',
+    required: true,
   },
 
   // ─── WEBSITE & ONLINE BOOKING ────────────────────────────────────────────────

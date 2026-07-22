@@ -304,6 +304,19 @@ function QuestionField({
         {subtext && (
           <p className="text-sm text-gray-500 leading-relaxed mt-1 whitespace-pre-line">{subtext}</p>
         )}
+        {question.link && (
+          <a
+            href={question.link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 mt-3 h-10 px-5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-full transition-colors"
+          >
+            {question.link.label}
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M4 2h6v6M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </a>
+        )}
       </div>
 
       {question.type === 'single_select' && (

@@ -39,8 +39,8 @@ export interface FlowVariantConfig {
 
 // ── Layout constants ───────────────────────────────────────────────────────
 const SPINE_X = 360;
-const ROW_H = 140;
-const SIDE_OFFSET = 240;
+const ROW_H = 150;
+const SIDE_OFFSET = 270;
 
 const Y_SOURCES           = 0;
 const Y_LEAD_OR_CUSTOMER  = Y_SOURCES + ROW_H;
@@ -90,7 +90,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
   const sourcesToRender = leadSources.length > 0 ? leadSources : [];
   if (sourcesToRender.length > 0) {
     const count = sourcesToRender.length;
-    const stride = 180;
+    const stride = 200;
     const startX = SPINE_X - ((count - 1) * stride) / 2;
     sourcesToRender.forEach((src, i) => {
       const id = `source_${src}`;
@@ -129,17 +129,27 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
     edges.push({ from: 'website_lead', to: 'lead_or_customer', label: 'Form submit' });
   }
 
-  // ── Zuper Connect (left of spine, parallel) ──────────────────────────────
+  // ── Zuper Connect (left of spine, parallel entry channel) ────────────────
   if (usesConnect) {
+    const migrating = answers['migrate_number'] === 'yes';
+    const existingNumber = typeof answers['existing_number'] === 'string' && answers['existing_number'].trim()
+      ? answers['existing_number'].trim()
+      : null;
+    let connectDesc = 'Inbound calls and texts come in on your dedicated Zuper Connect number and are linked to jobs automatically.';
+    if (migrating) {
+      connectDesc = `Inbound calls and texts are linked to jobs automatically. We'll port ${existingNumber ?? 'your existing business number'} over to Zuper so customers keep calling the same line.`;
+    } else if (answers['migrate_number'] === 'no') {
+      connectDesc = 'Inbound calls and texts come in on a new dedicated Zuper Connect number and are linked to jobs automatically.';
+    }
     nodes.push({
       id: 'zuper_connect',
       label: 'Zuper Connect',
       type: 'integration',
-      description: 'Inbound calls and texts are logged here and linked to jobs.',
+      description: connectDesc,
       isOptional: true,
       position: { x: SPINE_X - SIDE_OFFSET, y: Y_ZUPER_CONNECT },
     });
-    edges.push({ from: 'lead_or_customer', to: 'zuper_connect', label: 'Calls & texts' });
+    edges.push({ from: 'zuper_connect', to: 'lead_or_customer', label: 'Calls & texts' });
   }
 
   // ── Qualification path ───────────────────────────────────────────────────
@@ -179,7 +189,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
 
   // ── Measurement provider nodes (feed measurements into CPQ) ──────────────
   if (measurementProviders.length > 0) {
-    const stride = 170;
+    const stride = 190;
     measurementProviders.forEach((p, i) => {
       const id = `provider_${p}`;
       const lbl = labelFor('measurement_providers', p);
@@ -243,7 +253,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
 
   // ── Suppliers (POs go OUT to them) ───────────────────────────────────────
   if (suppliers.length > 0) {
-    const stride = 170;
+    const stride = 190;
     suppliers.forEach((s, i) => {
       const id = `supplier_${s}`;
       const lbl = labelFor('suppliers', s);
