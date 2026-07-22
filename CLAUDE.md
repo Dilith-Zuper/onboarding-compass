@@ -28,7 +28,7 @@ Scope: roofing vertical only. SA applies changes manually post-submit.
 | Styling | Tailwind + design tokens (see DESIGN.md — mandatory read before UI work) |
 | DB / Storage | Supabase (service-role key server-side only; RLS disabled — MVP) |
 | Admin auth | Email OTP → JWT cookie (`jose`), or master-admin password login |
-| Flow diagram | React Flow (`@xyflow/react`), positions hardcoded in `CompassFlow.tsx` + `fitView` |
+| Flow diagram | React Flow (`@xyflow/react`); `lib/flow/variants.ts` positions are node CENTERS, `CompassFlow.tsx` converts to top-left via fixed node widths (`NODE_WIDTH`/`NODE_WIDTH_COMPACT` in `FlowNodes.tsx`) — this is what keeps the spine straight; icon-chip node cards, `fitView` |
 | PDF | `@react-pdf/renderer`, generated server-side on submit |
 | Email | **Gmail SMTP via nodemailer** (`GMAIL_USER` + app password) — not Resend |
 | Animations | Framer Motion |

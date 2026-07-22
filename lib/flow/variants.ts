@@ -38,9 +38,12 @@ export interface FlowVariantConfig {
 }
 
 // ── Layout constants ───────────────────────────────────────────────────────
+// All x/y are node CENTER coordinates — CompassFlow converts to top-left using
+// each node's fixed width, which is what keeps the spine perfectly straight.
 const SPINE_X = 360;
-const ROW_H = 150;
-const SIDE_OFFSET = 270;
+const ROW_H = 165;
+const SIDE_OFFSET = 300;
+const FAN_STRIDE = 216; // compact fan nodes are 196 wide + 20px gap
 
 const Y_SOURCES           = 0;
 const Y_LEAD_OR_CUSTOMER  = Y_SOURCES + ROW_H;
@@ -87,12 +90,21 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
     : [];
 
   // ── Lead source nodes (fan into Lead/Customer Created) ───────────────────
+  // Many sources wrap into two rows so the fan doesn't dwarf the rest of the
+  // chart. `dy` shifts every downstream row when a second source row exists.
   const sourcesToRender = leadSources.length > 0 ? leadSources : [];
+  const SOURCE_ROW_H = 78;
+  const sourceRows = sourcesToRender.length > 5 ? 2 : 1;
+  const dy = (sourceRows - 1) * SOURCE_ROW_H;
   if (sourcesToRender.length > 0) {
-    const count = sourcesToRender.length;
-    const stride = 200;
-    const startX = SPINE_X - ((count - 1) * stride) / 2;
+    const perRow = Math.ceil(sourcesToRender.length / sourceRows);
     sourcesToRender.forEach((src, i) => {
+      const row = Math.floor(i / perRow);
+      const col = i % perRow;
+      const rowCount = Math.min(perRow, sourcesToRender.length - row * perRow);
+      // Brick-offset a full-width second row so first-row edges drop between nodes
+      const brickOffset = row === 1 && rowCount === perRow ? FAN_STRIDE / 2 : 0;
+      const startX = SPINE_X - ((rowCount - 1) * FAN_STRIDE) / 2 + brickOffset;
       const id = `source_${src}`;
       const lbl = labelFor('lead_sources', src);
       nodes.push({
@@ -100,7 +112,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
         label: lbl,
         type: 'integration',
         description: `Inbound lead from ${lbl}.`,
-        position: { x: startX + i * stride, y: Y_SOURCES },
+        position: { x: startX + col * FAN_STRIDE, y: Y_SOURCES + row * SOURCE_ROW_H },
       });
       edges.push({ from: id, to: 'lead_or_customer' });
     });
@@ -114,7 +126,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
     description: hasQualification
       ? 'A new lead lands in Zuper and gets routed to qualification.'
       : 'A customer record + inspection job is created in Zuper directly.',
-    position: { x: SPINE_X, y: Y_LEAD_OR_CUSTOMER },
+    position: { x: SPINE_X, y: Y_LEAD_OR_CUSTOMER + dy },
   });
 
   // ── Website booking widget (right of spine, parallel entry) ──────────────
@@ -124,7 +136,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
       label: 'Website booking',
       type: 'integration',
       description: 'Homeowner submits the booking form on your website.',
-      position: { x: SPINE_X + SIDE_OFFSET, y: Y_WEBSITE },
+      position: { x: SPINE_X + SIDE_OFFSET, y: Y_WEBSITE + dy },
     });
     edges.push({ from: 'website_lead', to: 'lead_or_customer', label: 'Form submit' });
   }
@@ -147,7 +159,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
       type: 'integration',
       description: connectDesc,
       isOptional: true,
-      position: { x: SPINE_X - SIDE_OFFSET, y: Y_ZUPER_CONNECT },
+      position: { x: SPINE_X - SIDE_OFFSET, y: Y_ZUPER_CONNECT + dy },
     });
     edges.push({ from: 'zuper_connect', to: 'lead_or_customer', label: 'Calls & texts' });
   }
@@ -160,7 +172,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
       type: 'external',
       isExternal: true,
       description: 'Lead is managed in HubSpot. When qualified, it syncs to Zuper.',
-      position: { x: SPINE_X, y: Y_QUALIFICATION },
+      position: { x: SPINE_X, y: Y_QUALIFICATION + dy },
     });
     edges.push({ from: 'lead_or_customer', to: 'hubspot_lead' });
     edges.push({ from: 'hubspot_lead', to: 'inspection', label: 'Qualified in HubSpot' });
@@ -170,7 +182,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
       label: 'Lead Qualification job',
       type: 'job',
       description: 'A Zuper job for your sales rep — call the lead, confirm interest, mark qualified.',
-      position: { x: SPINE_X, y: Y_QUALIFICATION },
+      position: { x: SPINE_X, y: Y_QUALIFICATION + dy },
     });
     edges.push({ from: 'lead_or_customer', to: 'lead_qualification' });
     edges.push({ from: 'lead_qualification', to: 'inspection', label: 'Qualified' });
@@ -184,12 +196,12 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
     label: 'Inspection job',
     type: 'job',
     description: 'Field tech visits the property, measures the roof, captures photos.',
-    position: { x: SPINE_X, y: Y_INSPECTION },
+    position: { x: SPINE_X, y: Y_INSPECTION + dy },
   });
 
   // ── Measurement provider nodes (feed measurements into CPQ) ──────────────
   if (measurementProviders.length > 0) {
-    const stride = 190;
+    const stride = FAN_STRIDE;
     measurementProviders.forEach((p, i) => {
       const id = `provider_${p}`;
       const lbl = labelFor('measurement_providers', p);
@@ -199,7 +211,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
         type: 'external',
         isExternal: true,
         description: `Roof measurements pulled from ${lbl} into the job for CPQ.`,
-        position: { x: SPINE_X + SIDE_OFFSET + i * stride, y: Y_MEASUREMENT },
+        position: { x: SPINE_X + SIDE_OFFSET + i * stride, y: Y_MEASUREMENT + dy },
       });
       edges.push({ from: id, to: 'cpq', label: 'Measurements' });
     });
@@ -213,7 +225,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
       type: 'action',
       isOptional: true,
       description: 'Adjuster visit scheduled. Supplement process tracked. Approval logged before production.',
-      position: { x: SPINE_X - SIDE_OFFSET, y: Y_INSURANCE },
+      position: { x: SPINE_X - SIDE_OFFSET, y: Y_INSURANCE + dy },
     });
     edges.push({ from: 'inspection', to: 'insurance_claim', label: 'Insurance job' });
     edges.push({ from: 'insurance_claim', to: 'cpq', label: 'Approved' });
@@ -228,7 +240,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
     label: 'CPQ / Estimating',
     type: 'action',
     description: 'Measurements feed into Zuper CPQ. Good / Better / Best proposals built per brand.',
-    position: { x: SPINE_X, y: Y_CPQ },
+    position: { x: SPINE_X, y: Y_CPQ + dy },
   });
 
   // ── Proposal ─────────────────────────────────────────────────────────────
@@ -237,7 +249,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
     label: 'Proposal sent',
     type: 'action',
     description: 'Customer receives their proposal. Approval captured digitally.',
-    position: { x: SPINE_X, y: Y_PROPOSAL },
+    position: { x: SPINE_X, y: Y_PROPOSAL + dy },
   });
   edges.push({ from: 'cpq', to: 'proposal' });
 
@@ -247,13 +259,13 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
     label: 'Material ordering',
     type: 'action',
     description: 'Pre-production: materials list reviewed, POs raised to suppliers, delivery scheduled.',
-    position: { x: SPINE_X, y: Y_MATERIAL_ORDERING },
+    position: { x: SPINE_X, y: Y_MATERIAL_ORDERING + dy },
   });
   edges.push({ from: 'proposal', to: 'material_ordering', label: 'Customer approved' });
 
   // ── Suppliers (POs go OUT to them) ───────────────────────────────────────
   if (suppliers.length > 0) {
-    const stride = 190;
+    const stride = FAN_STRIDE;
     suppliers.forEach((s, i) => {
       const id = `supplier_${s}`;
       const lbl = labelFor('suppliers', s);
@@ -263,7 +275,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
         type: 'external',
         isExternal: true,
         description: `Purchase order sent to ${lbl}.`,
-        position: { x: SPINE_X + SIDE_OFFSET + i * stride, y: Y_SUPPLIERS },
+        position: { x: SPINE_X + SIDE_OFFSET + i * stride, y: Y_SUPPLIERS + dy },
       });
       edges.push({ from: 'material_ordering', to: id, label: 'PO' });
     });
@@ -275,7 +287,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
     label: 'Production',
     type: 'job',
     description: 'Tear off, install, cleanup — each with its own checklist and photos.',
-    position: { x: SPINE_X, y: Y_PRODUCTION },
+    position: { x: SPINE_X, y: Y_PRODUCTION + dy },
   });
   edges.push({ from: 'material_ordering', to: 'production' });
 
@@ -296,7 +308,7 @@ export function computeFlowVariant(answers: Record<string, any>): FlowVariantCon
     label: 'Invoicing & Closeout',
     type: 'end',
     description: invoicingDesc,
-    position: { x: SPINE_X, y: Y_INVOICING },
+    position: { x: SPINE_X, y: Y_INVOICING + dy },
   });
   edges.push({ from: 'production', to: 'invoicing' });
 
