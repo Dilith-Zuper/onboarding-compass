@@ -19,10 +19,11 @@ export function CategoriesModule({ categories, answers, token, isPreview }: Prop
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <p className="text-xs text-gray-500 leading-relaxed">
         Click a category name to rename it. Want to <strong>add or remove</strong> categories instead? Drop a note in the change request box below.
       </p>
+      <div className="grid gap-2 md:grid-cols-2 items-start">
       {categories.map((cat) => (
         <div
           key={cat.uid}
@@ -53,6 +54,7 @@ export function CategoriesModule({ categories, answers, token, isPreview }: Prop
           </span>
         </div>
       ))}
+      </div>
     </div>
   );
 }

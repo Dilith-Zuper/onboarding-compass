@@ -35,13 +35,20 @@ const MODULE_LABELS: Record<string, string> = {
   cpq:           'Proposals',
 };
 
+// Written for customers who have never used Zuper: what it is + why they care.
 const MODULE_DESCRIPTIONS: Record<string, string> = {
-  categories:    'The types of jobs your team handles in Zuper.',
-  statuses:      'The stages a job moves through from start to completion.',
-  checklists:    'Field checklists attached to each job type.',
-  notifications: 'Automated messages sent to customers and team members.',
-  workflows:     'Background automations running in your account.',
-  cpq:           'Your Good / Better / Best proposal structure per brand.',
+  categories:
+    'Categories are the types of work you do — think Retail, Insurance, Commercial. Each one gets its own pipeline of statuses, checklists, and notifications, so an insurance job can follow different steps than a retail one.',
+  statuses:
+    'A status is where a job stands right now — like package tracking, but for roofing: Scheduled, Crew on site, Completed. When a job changes status, Zuper knows what to do next: notify the homeowner, unlock a checklist, or line up the next step.',
+  checklists:
+    'The steps your field team completes on site — photos to take, measurements to record, sign-offs to collect. They live on the tech\'s phone and are tied to job statuses, so nothing gets skipped.',
+  notifications:
+    'The texts and emails Zuper sends automatically — appointment confirmations, on-my-way alerts, completion updates — so homeowners and your team stay in the loop without anyone having to remember.',
+  workflows:
+    'Automations are like an office assistant who never sleeps: when something happens (a lead comes in, a quote is accepted), Zuper does the next step for you. These already work out of the box — skim the plain-English summaries and flag anything that doesn\'t match how you operate.',
+  cpq:
+    'Your Good / Better / Best proposal structure, built per brand you work with — so every estimate presents the homeowner three clear options.',
 };
 
 export function SnapshotStep({ token, snapshot, answers, changeRequests, saEmail, isPreview, onChangeRequest, onSnapshotReady, onNext }: Props) {
@@ -78,7 +85,7 @@ export function SnapshotStep({ token, snapshot, answers, changeRequests, saEmail
   }
 
   return (
-    <div className="max-w-[760px] mx-auto px-6 py-12 space-y-6">
+    <div className="max-w-[1100px] mx-auto px-6 py-10 space-y-6">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <p className="text-[11px] font-bold uppercase tracking-widest text-orange-500 mb-2">
@@ -87,7 +94,7 @@ export function SnapshotStep({ token, snapshot, answers, changeRequests, saEmail
         <h1 className="text-[32px] font-extrabold text-[#1A1A1A] leading-tight">
           {MODULE_LABELS[activeModule]}
         </h1>
-        <p className="text-sm text-gray-500 leading-relaxed mt-2">
+        <p className="text-sm text-gray-500 leading-relaxed mt-2 max-w-[820px]">
           {MODULE_DESCRIPTIONS[activeModule]}
         </p>
       </motion.div>
@@ -137,18 +144,20 @@ export function SnapshotStep({ token, snapshot, answers, changeRequests, saEmail
       </AnimatePresence>
 
       {/* Navigation */}
-      <div className="flex items-center gap-3">
-        {activeIndex > 0 && (
+      <div className="flex items-center justify-between gap-3">
+        {activeIndex > 0 ? (
           <button
             onClick={goBack}
             className="h-12 px-6 rounded-full border border-[#E5E2DC] text-sm font-semibold text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
           >
             ← Back
           </button>
+        ) : (
+          <span />
         )}
         <button
           onClick={advance}
-          className="flex-1 h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-full transition-colors text-base"
+          className="h-12 px-8 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-full transition-colors text-base"
         >
           {isLast ? 'Review and submit →' : 'Continue →'}
         </button>

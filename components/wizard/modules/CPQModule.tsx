@@ -92,6 +92,7 @@ export function CPQModule({ selectedBrands, saEmail }: Props) {
         </p>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-2 items-start">
       {brands.map((brandKey) => {
         const gbb = BRAND_GBB[brandKey] || GENERIC_GBB;
         const brandName = brandKey
@@ -117,6 +118,7 @@ export function CPQModule({ selectedBrands, saEmail }: Props) {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

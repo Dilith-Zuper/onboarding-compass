@@ -102,7 +102,7 @@ Responses live in one table keyed by `(session_id, question_id)`. Reserved keys 
 0. **Welcome** — name capture (persisted as `__customer_name`; returning customers skip to 1)
 1. **Questions** — from `lib/questions.ts`, grouped by section, 6 per page, pages never cross sections. Per-question autosave (500ms debounce) with Saving/Saved indicator. Conditional visibility (`condition`/`conditions` AND logic, `requiresSessionFlag` for Zuper Connect), dynamic subtexts, `optionsFromQuestion`, optional `link` field rendered as a button (used for the A2P 10DLC registration form). Zuper Connect follow-ups: number porting (number + current provider) when keeping an existing number, and 10DLC form confirmation whenever Connect is activated.
 2. **Flow** — `computeFlowVariant(answers)`: lead sources fan into Lead/Customer created → optional HubSpot or Lead Qualification → Inspection → optional Insurance claim → CPQ (measurement providers feed in) → Proposal → Material ordering (suppliers fan out) → Production → Job complete → Invoicing & closeout. Zuper Connect parallel. Notification badges per node from `lib/notifications/derive.ts`.
-3. **Account snapshot** — 6 modules (categories, statuses, checklists, notifications, workflows, CPQ) over the cached Supabase snapshot; inline rename on categories/statuses; per-module change-request textarea (debounced autosave); polling UI if snapshot not yet fetched.
+3. **Account snapshot** — 6 modules (categories, statuses, checklists, notifications, workflows, CPQ) over the cached Supabase snapshot; `max-w-[1100px]` with two-column card grids on md+; each module header carries a plain-English "what is this + why you care" explainer for Zuper newcomers; automations grouped by journey stage (`workflowStage` in `lib/zuper/workflowDescriptions.ts`) with humanized triggers, no node counts; inline rename on categories/statuses; per-module change-request textarea (debounced autosave); polling UI if snapshot not yet fetched.
 4. **Review & submit** — labeled Q&A, widget-mode callout, change requests, submit → atomic status claim (double-click safe) → PDF → Supabase Storage `reports` bucket → emails (SA digest to onboarding@zuper.co, CC SA, PDF attached; confirmation to customer) → single submission row (resubmits replace it).
 
 Funnel: every step change POSTs to `/api/customer/[token]/progress` → `sessions.last_seen_step` (monotonic). First open stamps `first_opened_at`.
@@ -147,7 +147,7 @@ Supabase free tier auto-pauses after ~3 days idle → transient `PGRST205` error
 ## 10. HOUSE RULES
 
 - **Design**: DESIGN.md is the single source of truth. Non-negotiables: `bg-[#FAF9F7]` pages, white `rounded-2xl` cards with `border-[#E5E2DC]`, orange-500 as the only interactive color, `rounded-full` CTAs, inline SVG icons, sentence case, no emojis.
-- **Widths**: wizard `max-w-[760px]`, admin/plan `max-w-[1100px]` — never mix.
+- **Widths**: wizard `max-w-[760px]` (exceptions: Flow step `1400px`, Snapshot step `1100px` — data-dense steps use the screen), admin/plan `max-w-[1100px]` — never mix otherwise.
 - **Customer-facing language**: never "contact your SA" — always the session's `sa_email`, fallback `onboarding@zuper.co`.
 - **API keys**: no Zuper call outside `lib/zuper/api.ts`; nothing Zuper-related in client components.
 - **Answers**: format only via `lib/answers.ts`.

@@ -25,6 +25,7 @@ export function StatusesModule({ categories, answers, token, isPreview }: Props)
       <p className="text-xs text-gray-500 leading-relaxed">
         Click a status name to rename it. Want to <strong>add or remove</strong> statuses? Drop a note in the change request box below.
       </p>
+      <div className="grid gap-x-6 gap-y-5 md:grid-cols-2 items-start">
       {categoriesWithStatuses.map((cat) => {
         const catLabel = categoryRenames[cat.uid]?.newName || cat.name;
         return (
@@ -69,6 +70,7 @@ export function StatusesModule({ categories, answers, token, isPreview }: Props)
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

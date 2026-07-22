@@ -84,7 +84,7 @@ function LiveTab({ notifications }: { notifications: ZuperNotification[] }) {
     return <p className="text-sm text-gray-400">No active notifications configured in this account yet.</p>;
   }
   return (
-    <div className="space-y-2">
+    <div className="grid gap-2 md:grid-cols-2 items-start">
       {notifications.map((n) => <LiveCard key={n.uid} n={n} />)}
     </div>
   );
@@ -166,7 +166,7 @@ function DerivedTab({ items, emptyText }: { items: DerivedNotification[]; emptyT
     return <p className="text-sm text-gray-400">{emptyText}</p>;
   }
   return (
-    <div className="space-y-2">
+    <div className="grid gap-2 md:grid-cols-2 items-start">
       {items.map((n) => <DerivedCard key={n.id} n={n} />)}
     </div>
   );
