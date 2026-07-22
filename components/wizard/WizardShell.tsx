@@ -154,6 +154,7 @@ export default function WizardShell({
               <FlowStep
                 answers={answers}
                 customerName={customerName}
+                snapshot={snapshot}
                 onNext={handleFlowNext}
               />
             )}

@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- Flow stage click-through detail (progressive disclosure): clicking a stage node now shows that stage's real status pipeline from the customer's live account — keyword-matched category (`lib/flow/stageDetail.ts`), statuses as ordered chips with color dots and Sig/Timer badges, customer renames respected, graceful null when no category matches. The Lead Qualification node additionally explains the answer / no-answer / 3-attempts-then-cold-lead branches.
 - Curated plain-English descriptions for all 34 GA (golden account) workflows (`lib/zuper/workflowDescriptions.ts`), shown in the wizard's automations module and the PDF report. Matching is name-based (punctuation-insensitive); curated copy wins over the Zuper description, unknown workflows fall back to Zuper's own description.
 - Number-porting questions when Zuper Connect is enabled and the customer keeps their existing number: the number itself and the current provider, with copy explaining we'll port it to Zuper. The flowchart's Zuper Connect node description reflects the porting choice.
 - A2P 10DLC registration question when Zuper Connect is activated — links to the Microsoft Forms registration form (new `link` field on questions, rendered as a button) and asks the customer to confirm submission.

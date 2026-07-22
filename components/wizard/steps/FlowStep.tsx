@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { CHANNEL_LABEL, AUDIENCE_LABEL, type DerivedNotification } from '@/lib/notifications/derive';
+import { getStagePipeline, type StagePipeline } from '@/lib/flow/stageDetail';
 
 const CompassFlow = dynamic(
   () => import('../flowchart/CompassFlow').then((m) => ({ default: m.CompassFlow })),
@@ -15,18 +16,21 @@ const CompassFlow = dynamic(
 );
 
 interface ActiveNode {
+  id: string;
   label: string;
   description: string;
   notifications: DerivedNotification[];
+  pipeline: StagePipeline | null;
 }
 
 interface Props {
   answers: Record<string, any>;
   customerName: string;
+  snapshot: any;
   onNext: () => void;
 }
 
-export function FlowStep({ answers, customerName, onNext }: Props) {
+export function FlowStep({ answers, customerName, snapshot, onNext }: Props) {
   const [activeNode, setActiveNode] = useState<ActiveNode | null>(null);
 
   return (
@@ -45,7 +49,7 @@ export function FlowStep({ answers, customerName, onNext }: Props) {
             How your jobs will move in Zuper
           </h1>
           <p className="text-sm text-gray-500 leading-relaxed mt-1.5">
-            Based on what you told us{customerName ? `, ${customerName}` : ''}. Click any node to learn more — drag to rearrange, scroll to zoom.
+            Based on what you told us{customerName ? `, ${customerName}` : ''}. Click any stage to see how it moves through your account, step by step — drag to rearrange, scroll to zoom.
           </p>
         </div>
         {/* Legend */}
@@ -75,8 +79,14 @@ export function FlowStep({ answers, customerName, onNext }: Props) {
       >
         <CompassFlow
           answers={answers}
-          onNodeClick={(label, description, notifications) =>
-            setActiveNode({ label, description, notifications: notifications ?? [] })
+          onNodeClick={(id, label, description, notifications) =>
+            setActiveNode({
+              id,
+              label,
+              description,
+              notifications: notifications ?? [],
+              pipeline: getStagePipeline(id, snapshot?.categories, answers),
+            })
           }
           className="w-full h-[calc(100vh-280px)] min-h-[520px] rounded-2xl overflow-hidden border border-[#E5E2DC] bg-white"
         />
@@ -112,6 +122,63 @@ export function FlowStep({ answers, customerName, onNext }: Props) {
                 </svg>
               </button>
             </div>
+
+            {/* Real status pipeline for this stage, from their live account */}
+            {activeNode.pipeline && (
+              <div className="mt-4 pt-4 border-t border-[#E5E2DC]">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
+                  How &ldquo;{activeNode.pipeline.categoryName}&rdquo; moves in your account · {activeNode.pipeline.statuses.length} stages
+                </p>
+                <div className="flex flex-wrap items-center gap-y-2">
+                  {activeNode.pipeline.statuses.map((s, i) => (
+                    <div key={s.uid} className="flex items-center">
+                      {i > 0 && (
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="mx-1 text-gray-300 shrink-0">
+                          <path d="M4 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                      <span className="inline-flex items-center gap-1.5 bg-[#FAF9F7] border border-[#E5E2DC] rounded-full pl-2 pr-2.5 py-1">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color || '#E5E2DC' }} />
+                        <span className="text-xs font-semibold text-[#1A1A1A] whitespace-nowrap">{s.name}</span>
+                        {s.requireSignature && (
+                          <span className="text-[8px] font-bold uppercase tracking-widest text-gray-400 bg-white border border-[#E5E2DC] px-1 py-0.5 rounded-full">Sig</span>
+                        )}
+                        {s.trackTime && (
+                          <span className="text-[8px] font-bold uppercase tracking-widest text-gray-400 bg-white border border-[#E5E2DC] px-1 py-0.5 rounded-full">Timer</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Lead qualification: what happens on answer / no answer */}
+            {activeNode.id === 'lead_qualification' && (
+              <div className="mt-4 pt-4 border-t border-[#E5E2DC] space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
+                  What happens on the call
+                </p>
+                <div className="flex items-start gap-2.5 bg-green-50/60 border border-green-100 rounded-xl px-3 py-2.5">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 mt-0.5 text-green-600">
+                    <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M4.5 7l2 2 3-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    <span className="font-bold text-[#1A1A1A]">They answer</span> — your rep runs the qualifying questions. Qualified leads move straight to booking an inspection.
+                  </p>
+                </div>
+                <div className="flex items-start gap-2.5 bg-amber-50/60 border border-amber-100 rounded-xl px-3 py-2.5">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 mt-0.5 text-amber-600">
+                    <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M7 4v3.5l2 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    <span className="font-bold text-[#1A1A1A]">No answer</span> — the job is rescheduled automatically for attempts 2 and 3, with follow-up texts in between. After three misses the lead is marked cold, so nothing sits forgotten.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {activeNode.notifications.length > 0 && (
               <div className="mt-4 pt-4 border-t border-[#E5E2DC]">

@@ -28,7 +28,7 @@ import {
 
 interface Props {
   answers: Record<string, any>;
-  onNodeClick?: (label: string, description: string, notifications?: DerivedNotification[]) => void;
+  onNodeClick?: (id: string, label: string, description: string, notifications?: DerivedNotification[]) => void;
   className?: string;
 }
 
@@ -161,7 +161,7 @@ export function CompassFlow({ answers, onNodeClick, className }: Props) {
     (_: React.MouseEvent, node: Node) => {
       if (node.type !== 'compass') return;
       const data = node.data as { label: string; description: string };
-      onNodeClick?.(data.label, data.description, notifsByNode[node.id] ?? []);
+      onNodeClick?.(node.id, data.label, data.description, notifsByNode[node.id] ?? []);
     },
     [onNodeClick, notifsByNode]
   );
